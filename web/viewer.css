@@ -1517,3 +1517,19 @@ dialog :link {
     display: none;
   }
 }
+
+
+.toolbarButton#openFile,
+.toolbarButton#download,
+.toolbarButton#bookmark,
+.toolbarButton#print,
+.toolbarButton#editorFreeText,
+.toolbarButton#editorInk,
+.verticalToolbarSeparator,
+.secondaryToolbarButton#pageRotateCw,
+.secondaryToolbarButton#pageRotateCcw,
+.secondaryToolbarButton#documentProperties,
+.horizontalToolbarSeparator,
+#cursorToolButtons {
+  display: none !important;
+}
