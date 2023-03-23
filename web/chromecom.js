@@ -363,7 +363,7 @@ class ChromePreferences extends BasePreferences {
         // compatibility with managed preferences.
         const defaultManagedPrefs = Object.assign(
           {
-            enableHandToolOnLoad: false,
+            enableHandToolOnLoad: true,
             disableTextLayer: false,
             enhanceTextSelection: false,
             showPreviousViewOnLoad: true,
