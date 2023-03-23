@@ -128,10 +128,6 @@ function scrollIntoView(element, spot, scrollMatches = false) {
     return;
   }
 
-  // CCMS Addition - carried over from prior edits, not sure if this is needed.
-  parent.scrollTop = 0;
-  return;
-
   let offsetY = element.offsetTop + element.clientTop;
   let offsetX = element.offsetLeft + element.clientLeft;
   while (
