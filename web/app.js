@@ -1905,6 +1905,15 @@ const PDFViewerApplication = {
         webViewerAnnotationEditorStatesChanged
       );
     }
+
+    document.getElementById('viewerContainer').addEventListener('dblclick', function(e){
+      if( PDFViewerApplication.pdfViewer.currentScaleValue == 'page-width' ){
+        PDFViewerApplication.pdfViewer.currentScaleValue = 'page-height';
+      }else{
+        PDFViewerApplication.pdfViewer.currentScaleValue = 'page-width';
+      }
+    });
+
   },
 
   bindWindowEvents() {
