@@ -2978,7 +2978,7 @@ function webViewerKeyDown(evt) {
   let handled = false,
     ensureViewerFocused = false;
 
-  const cmd = 1;
+  var tmpVar = 1;
   if(
     evt.keyCode != 61
     && evt.keyCode != 107
@@ -2988,12 +2988,13 @@ function webViewerKeyDown(evt) {
     && evt.keyCode != 109
     && evt.keyCode != 189
   ){
-    cmd =
+    tmpVar =
       (evt.ctrlKey ? 1 : 0) |
       (evt.altKey ? 2 : 0) |
       (evt.shiftKey ? 4 : 0) |
       (evt.metaKey ? 8 : 0);
   }
+  const cmd = tmpVar;
 
   // First, handle the key bindings that are independent whether an input
   // control is selected or not.
