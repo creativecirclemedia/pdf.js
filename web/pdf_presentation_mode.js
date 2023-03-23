@@ -273,9 +273,21 @@ class PDFPresentationMode {
   /**
    * Resets the properties used for tracking mouse scrolling events.
    */
-  #resetMouseScrollState() {
+  #resetMouseScrollState(e) {
+
     this.mouseScrollTimeStamp = 0;
     this.mouseScrollDelta = 0;
+    
+    if( typeof e == 'object' ){
+      if( e.keyCode == 61 || e.keyCode == 107 ){
+        PDFViewerApplication.zoomIn();
+        e.preventDefault();
+      }else if( e.keyCode == 173 || e.keyCode == 109 ){
+        PDFViewerApplication.zoomOut();
+        e.preventDefault();
+      }
+    }
+
   }
 
   #touchSwipe(evt) {

@@ -681,9 +681,9 @@ const PDFViewerApplication = {
   },
 
   zoomIn(steps, scaleFactor) {
-    if (this.pdfViewer.isInPresentationMode) {
-      return;
-    }
+    // if (this.pdfViewer.isInPresentationMode) {
+    //   return;
+    // }
     this.pdfViewer.increaseScale({
       drawingDelay: AppOptions.get("defaultZoomDelay"),
       steps,
@@ -692,9 +692,9 @@ const PDFViewerApplication = {
   },
 
   zoomOut(steps, scaleFactor) {
-    if (this.pdfViewer.isInPresentationMode) {
-      return;
-    }
+    // if (this.pdfViewer.isInPresentationMode) {
+    //   return;
+    // }
     this.pdfViewer.decreaseScale({
       drawingDelay: AppOptions.get("defaultZoomDelay"),
       steps,
