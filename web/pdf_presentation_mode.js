@@ -238,11 +238,18 @@ class PDFPresentationMode {
     // Unless an internal link was clicked, advance one page.
     evt.preventDefault();
 
-    if (evt.shiftKey) {
-      this.pdfViewer.previousPage();
-    } else {
-      this.pdfViewer.nextPage();
+    // if (evt.shiftKey) {
+    //   this.pdfViewer.previousPage();
+    // } else {
+    //   this.pdfViewer.nextPage();
+    // }
+
+    if( this.pdfViewer.currentScaleValue == 'page-width' ){
+      this.pdfViewer.currentScaleValue = 'page-height';
+    }else{
+      this.pdfViewer.currentScaleValue = 'page-width';
     }
+
   }
 
   #contextMenu() {
@@ -277,7 +284,7 @@ class PDFPresentationMode {
 
     this.mouseScrollTimeStamp = 0;
     this.mouseScrollDelta = 0;
-    
+
     if( typeof e == 'object' ){
       if( e.keyCode == 61 || e.keyCode == 107 ){
         PDFViewerApplication.zoomIn();
