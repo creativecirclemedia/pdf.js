@@ -75,7 +75,7 @@ const defaultOptions = {
   },
   defaultZoomValue: {
     /** @type {string} */
-    value: "",
+    value: "page-height",
     kind: OptionKind.VIEWER + OptionKind.PREFERENCE,
   },
   disableHistory: {
