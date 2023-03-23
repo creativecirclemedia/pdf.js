@@ -2966,6 +2966,7 @@ function webViewerKeyUp(evt) {
 }
 
 function webViewerKeyDown(evt) {
+
   PDFViewerApplication._isCtrlKeyDown = evt.key === "Control";
 
   if (PDFViewerApplication.overlayManager.active) {
@@ -2976,15 +2977,28 @@ function webViewerKeyDown(evt) {
 
   let handled = false,
     ensureViewerFocused = false;
-  const cmd =
-    (evt.ctrlKey ? 1 : 0) |
-    (evt.altKey ? 2 : 0) |
-    (evt.shiftKey ? 4 : 0) |
-    (evt.metaKey ? 8 : 0);
+
+  const cmd = 1;
+  if(
+    evt.keyCode != 61
+    && evt.keyCode != 107
+    && evt.keyCode != 187
+    && evt.keyCode != 171
+    && evt.keyCode != 173
+    && evt.keyCode != 109
+    && evt.keyCode != 189
+  ){
+    cmd =
+      (evt.ctrlKey ? 1 : 0) |
+      (evt.altKey ? 2 : 0) |
+      (evt.shiftKey ? 4 : 0) |
+      (evt.metaKey ? 8 : 0);
+  }
 
   // First, handle the key bindings that are independent whether an input
   // control is selected or not.
   if (cmd === 1 || cmd === 8 || cmd === 5 || cmd === 12) {
+    
     // either CTRL or META key with optional SHIFT.
     switch (evt.keyCode) {
       case 70: // f
@@ -3031,7 +3045,6 @@ function webViewerKeyDown(evt) {
           handled = false;
         }
         break;
-
       case 38: // up arrow
         if (isViewerInPresentationMode || PDFViewerApplication.page > 1) {
           PDFViewerApplication.page = 1;
