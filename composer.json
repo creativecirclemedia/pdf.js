@@ -4,7 +4,9 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "cp build/generic-legacy/web/viewer.html build/generic-legacy/web/viewer.php"
+            "cp build/generic-legacy/web/viewer.html build/generic-legacy/web/viewer.php",
+            "cp php/ccms-auth.php build/generic-legacy/web/ccms-auth.php"
+            
         ]
     }
 }
