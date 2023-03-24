@@ -9,3 +9,5 @@ examples/node/pdf2png/*.png
 ._*
 vendor
 .env
+build/generic-legacy/web/viewer.php
+build/generic-legacy/web/ccms-auth.php

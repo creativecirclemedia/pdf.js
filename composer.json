@@ -4,7 +4,7 @@
     },
     "scripts": {
         "post-install-cmd": [
-            "mv build/generic-legacy/web/viewer.html build/generic-legacy/web/viewer.php"
+            "cp build/generic-legacy/web/viewer.html build/generic-legacy/web/viewer.php"
         ]
     }
 }
