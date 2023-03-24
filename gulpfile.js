@@ -955,7 +955,7 @@ function buildGeneric(defines, dir) {
       .pipe(gulp.dest(dir + "web")),
 
     gulp
-      .src("web/compressed.tracemonkey-pldi-09.pdf")
+      .src("web/ccms-logo.pdf")
       .pipe(gulp.dest(dir + "web")),
   ]);
 }

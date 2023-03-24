@@ -299,7 +299,7 @@ if (
 ) {
   defaultOptions.defaultUrl = {
     /** @type {string} */
-    value: "compressed.tracemonkey-pldi-09.pdf",
+    value: "ccms-logo.pdf",
     kind: OptionKind.VIEWER,
   };
   defaultOptions.disablePreferences = {
