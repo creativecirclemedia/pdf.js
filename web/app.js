@@ -2212,6 +2212,7 @@ function webViewerInitialized() {
     const params = parseQueryString(queryString);
     if( params.get("view") ){
       file = params.get("view");
+      window.currentFile = file;
     }else{
       file = params.get("file") ?? AppOptions.get("defaultUrl");
       validateFileURL(file);
@@ -2271,6 +2272,7 @@ function webViewerInitialized() {
   }
 
   if (!PDFViewerApplication.supportsFullscreen) {
+    document.querySelector('.alternateFullscreen').style.display = 'inline-block';
     appConfig.secondaryToolbar?.presentationModeButton.classList.add("hidden");
   }
 
