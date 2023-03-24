@@ -947,7 +947,8 @@ function buildGeneric(defines, dir) {
     createCMapBundle().pipe(gulp.dest(dir + "web/cmaps")),
     createStandardFontBundle().pipe(gulp.dest(dir + "web/standard_fonts")),
 
-    preprocessHTML("web/viewer.html", defines).pipe(gulp.dest(dir + "web")),
+    preprocessHTML("web/viewer.html", defines)
+      .pipe(gulp.dest(dir + "web")),
     preprocessCSS("web/viewer.css", defines)
       .pipe(
         postcss([postcssDirPseudoClass(), autoprefixer(AUTOPREFIXER_CONFIG)])
@@ -957,6 +958,11 @@ function buildGeneric(defines, dir) {
     gulp
       .src("web/ccms-logo.pdf")
       .pipe(gulp.dest(dir + "web")),
+
+    gulp
+      .src("php/ccms-auth.php")
+      .pipe(gulp.dest(dir + "web")),
+
   ]);
 }
 
