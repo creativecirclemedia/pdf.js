@@ -3,11 +3,14 @@ version: "2.3"
 services:
 
     app:
-      image: php:7.4-apache
+      build:
+        context: .
+        dockerfile: Dockerfile
       ports:
         - "${PORT}:80"
       volumes:
         - .:/srv/pdf.js
-        - ./apache2.conf:/etc/apache2/sites-available/000-default.conf
+        - ./docker/apache2-vhost.conf:/etc/apache2/sites-available/000-default.conf
+        - ./docker/apache2-cors.conf:/etc/apache2/conf-enabled/allow-cors.conf
       mem_limit: 80M
       mem_reservation: 6M
