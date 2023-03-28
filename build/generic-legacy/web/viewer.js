@@ -1694,10 +1694,6 @@ function webViewerInitialized() {
     (_appConfig$toolbar = appConfig.toolbar) === null || _appConfig$toolbar === void 0 ? void 0 : _appConfig$toolbar.print.classList.add("hidden");
     (_appConfig$secondaryT3 = appConfig.secondaryToolbar) === null || _appConfig$secondaryT3 === void 0 ? void 0 : _appConfig$secondaryT3.printButton.classList.add("hidden");
   }
-  if (!PDFViewerApplication.supportsFullscreen) {
-    var _appConfig$secondaryT4;
-    (_appConfig$secondaryT4 = appConfig.secondaryToolbar) === null || _appConfig$secondaryT4 === void 0 ? void 0 : _appConfig$secondaryT4.presentationModeButton.classList.add("hidden");
-  }
   if (PDFViewerApplication.supportsIntegratedFind) {
     var _appConfig$toolbar2;
     (_appConfig$toolbar2 = appConfig.toolbar) === null || _appConfig$toolbar2 === void 0 ? void 0 : _appConfig$toolbar2.viewFind.classList.add("hidden");
@@ -2221,12 +2217,12 @@ function webViewerTouchEnd(evt) {
   PDFViewerApplication._touchUnusedFactor = 1;
 }
 function webViewerClick(evt) {
-  var _PDFViewerApplication22, _appConfig$toolbar3, _appConfig$secondaryT5;
+  var _PDFViewerApplication22, _appConfig$toolbar3, _appConfig$secondaryT4;
   if (!((_PDFViewerApplication22 = PDFViewerApplication.secondaryToolbar) !== null && _PDFViewerApplication22 !== void 0 && _PDFViewerApplication22.isOpen)) {
     return;
   }
   const appConfig = PDFViewerApplication.appConfig;
-  if (PDFViewerApplication.pdfViewer.containsElement(evt.target) || (_appConfig$toolbar3 = appConfig.toolbar) !== null && _appConfig$toolbar3 !== void 0 && _appConfig$toolbar3.container.contains(evt.target) && evt.target !== ((_appConfig$secondaryT5 = appConfig.secondaryToolbar) === null || _appConfig$secondaryT5 === void 0 ? void 0 : _appConfig$secondaryT5.toggleButton)) {
+  if (PDFViewerApplication.pdfViewer.containsElement(evt.target) || (_appConfig$toolbar3 = appConfig.toolbar) !== null && _appConfig$toolbar3 !== void 0 && _appConfig$toolbar3.container.contains(evt.target) && evt.target !== ((_appConfig$secondaryT4 = appConfig.secondaryToolbar) === null || _appConfig$secondaryT4 === void 0 ? void 0 : _appConfig$secondaryT4.toggleButton)) {
     PDFViewerApplication.secondaryToolbar.close();
   }
 }
@@ -9548,7 +9544,7 @@ class PDFViewer {
       writable: true,
       value: null
     });
-    const viewerVersion = '3.5.123';
+    const viewerVersion = '3.5.125';
     if (_pdfjsLib.version !== viewerVersion) {
       throw new Error(`The API version "${_pdfjsLib.version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -15108,8 +15104,8 @@ var _app_options = __webpack_require__(5);
 var _pdf_link_service = __webpack_require__(7);
 var _app = __webpack_require__(2);
 var _document$blockUnbloc, _document;
-const pdfjsVersion = '3.5.123';
-const pdfjsBuild = '8a3da4a9a';
+const pdfjsVersion = '3.5.125';
+const pdfjsBuild = 'e2c568a22';
 const AppConstants = {
   LinkTarget: _pdf_link_service.LinkTarget,
   RenderingStates: _ui_utils.RenderingStates,
