@@ -2212,11 +2212,11 @@ function webViewerInitialized() {
     const params = parseQueryString(queryString);
     if( params.get("view") ){
       file = params.get("view");
-      window.currentFile = file;
     }else{
       file = params.get("file") ?? AppOptions.get("defaultUrl");
       validateFileURL(file);
     }
+    window.currentFile = file;
   } else if (PDFJSDev.test("MOZCENTRAL")) {
     file = window.location.href;
   } else if (PDFJSDev.test("CHROME")) {
@@ -2272,7 +2272,6 @@ function webViewerInitialized() {
   }
 
   if (!PDFViewerApplication.supportsFullscreen) {
-    document.querySelector('.alternateFullscreen').style.display = 'inline-block';
     appConfig.secondaryToolbar?.presentationModeButton.classList.add("hidden");
   }
 

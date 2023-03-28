@@ -1647,11 +1647,11 @@ function webViewerInitialized() {
   const params = (0, _ui_utils.parseQueryString)(queryString);
   if (params.get("view")) {
     file = params.get("view");
-    window.currentFile = file;
   } else {
     file = params.get("file") ?? _app_options.AppOptions.get("defaultUrl");
     validateFileURL(file);
   }
+  window.currentFile = file;
   const fileInput = appConfig.openFileInput;
   fileInput.value = null;
   fileInput.addEventListener("change", function (evt) {
@@ -1696,7 +1696,6 @@ function webViewerInitialized() {
   }
   if (!PDFViewerApplication.supportsFullscreen) {
     var _appConfig$secondaryT4;
-    document.querySelector('.alternateFullscreen').style.display = 'inline-block';
     (_appConfig$secondaryT4 = appConfig.secondaryToolbar) === null || _appConfig$secondaryT4 === void 0 ? void 0 : _appConfig$secondaryT4.presentationModeButton.classList.add("hidden");
   }
   if (PDFViewerApplication.supportsIntegratedFind) {
@@ -9549,7 +9548,7 @@ class PDFViewer {
       writable: true,
       value: null
     });
-    const viewerVersion = '3.5.122';
+    const viewerVersion = '3.5.123';
     if (_pdfjsLib.version !== viewerVersion) {
       throw new Error(`The API version "${_pdfjsLib.version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -15109,8 +15108,8 @@ var _app_options = __webpack_require__(5);
 var _pdf_link_service = __webpack_require__(7);
 var _app = __webpack_require__(2);
 var _document$blockUnbloc, _document;
-const pdfjsVersion = '3.5.122';
-const pdfjsBuild = 'f2bc821fb';
+const pdfjsVersion = '3.5.123';
+const pdfjsBuild = '8a3da4a9a';
 const AppConstants = {
   LinkTarget: _pdf_link_service.LinkTarget,
   RenderingStates: _ui_utils.RenderingStates,

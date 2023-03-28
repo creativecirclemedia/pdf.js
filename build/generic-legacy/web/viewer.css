@@ -2704,6 +2704,3 @@ dialog :link {
 #cursorToolButtons {
   display: none !important;
 }
-.toolbarButton.alternateFullscreen {
-  display: none;
-}
