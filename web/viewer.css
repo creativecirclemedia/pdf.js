@@ -1533,3 +1533,6 @@ dialog :link {
 #cursorToolButtons {
   display: none !important;
 }
+.alternateFullscreen {
+  display: inline-block !important;
+}
