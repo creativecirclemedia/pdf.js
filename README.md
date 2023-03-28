@@ -28,6 +28,7 @@ Requires `npm` and `gulp` as per the docs at the main site.
 export PUPPETEER_SKIP_DOWNLOAD=1
 npm i -f
 gulp generic-legacy
+composer run-script post-install-cmd # This is required to make the CCMS auth work with the newly built version
 ```
 
 Places the reader in `build/generic-legacy`.

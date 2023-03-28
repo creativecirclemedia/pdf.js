@@ -9549,7 +9549,7 @@ class PDFViewer {
       writable: true,
       value: null
     });
-    const viewerVersion = '3.5.119';
+    const viewerVersion = '3.5.122';
     if (_pdfjsLib.version !== viewerVersion) {
       throw new Error(`The API version "${_pdfjsLib.version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -15109,8 +15109,8 @@ var _app_options = __webpack_require__(5);
 var _pdf_link_service = __webpack_require__(7);
 var _app = __webpack_require__(2);
 var _document$blockUnbloc, _document;
-const pdfjsVersion = '3.5.119';
-const pdfjsBuild = 'e326677c2';
+const pdfjsVersion = '3.5.122';
+const pdfjsBuild = 'f2bc821fb';
 const AppConstants = {
   LinkTarget: _pdf_link_service.LinkTarget,
   RenderingStates: _ui_utils.RenderingStates,
@@ -15248,7 +15248,6 @@ function webViewerLoad() {
   try {
     parent.document.dispatchEvent(event);
   } catch (ex) {
-    console.error(`webviewerloaded: ${ex}`);
     document.dispatchEvent(event);
   }
   _app.PDFViewerApplication.run(config);
