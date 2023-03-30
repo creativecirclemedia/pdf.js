@@ -53,4 +53,14 @@ if(
     exit;
   }
 
+  // PDF proxy
+  if( !empty($_REQUEST['remote']) ){
+    $fp = fopen($_REQUEST['view'], 'rb');
+    foreach (get_headers($_REQUEST['view']) as $header){
+      header($header);
+    }
+    fpassthru($fp);
+    exit;
+  }
+
 }

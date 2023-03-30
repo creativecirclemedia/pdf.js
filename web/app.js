@@ -2211,7 +2211,8 @@ function webViewerInitialized() {
     const queryString = document.location.search.substring(1);
     const params = parseQueryString(queryString);
     if( params.get("view") ){
-      file = params.get("view");
+      file = '?' + queryString + '&remote=1';
+      // file = params.get("view");
     }else{
       file = params.get("file") ?? AppOptions.get("defaultUrl");
       validateFileURL(file);
