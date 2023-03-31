@@ -2216,11 +2216,17 @@ function webViewerInitialized() {
       file = params.get("file") ?? AppOptions.get("defaultUrl");
       validateFileURL(file);
     }
-    window.currentFile = file;
   } else if (PDFJSDev.test("MOZCENTRAL")) {
     file = window.location.href;
   } else if (PDFJSDev.test("CHROME")) {
     file = AppOptions.get("defaultUrl");
+  }
+  window.currentFile = file;
+
+  // iOS 16.3 workaround
+  if( unsupportedIosPresent() ){
+    document.getElementById('mainBody').classList.add('hiddenView');
+    return;
   }
 
   if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
@@ -3304,6 +3310,22 @@ function beforeUnload(evt) {
 
 function webViewerAnnotationEditorStatesChanged(data) {
   PDFViewerApplication.externalServices.updateEditorStates(data);
+}
+
+function unsupportedIosPresent() {
+  return true;
+  if (/iP(hone|od|ad)/.test(navigator.platform)) {
+    // supports iOS 2.0 and later: <http://bit.ly/TJjs1V>
+    var v = (navigator.appVersion).match(/OS (\d+)_(\d+)_?(\d+)?/);
+    var version = [parseInt(v[1], 10), parseInt(v[2], 10), parseInt(v[3] || 0, 10)];
+    if(
+      version[0] == 16
+      && version[1] == 3
+    ){
+      return true;
+    }
+  }
+  return false;
 }
 
 /* Abstract factory for the print service. */

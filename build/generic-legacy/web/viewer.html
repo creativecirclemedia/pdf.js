@@ -36,7 +36,27 @@ See https://github.com/adobe-type-tools/cmap-resources
   <script src="viewer.js"></script>
   </head>
 
-  <body tabindex="1">
+  <body tabindex="1" id='mainBody'>
+    <div id='iosFallback'>
+      <center>
+
+      <h3>Attention iOS users</h3>
+      <p>
+        This e-reader is not compatible with your version of Apple's iOS operating system.
+        Updating your device will correct this issue.
+      </p>
+      <p>
+        Meanwhile, you can click the following link to browse directly to this document.
+      </p>
+      <p>
+        <button type='button' onClick=" window.open(window.currentFile); ">
+          Click here to view PDF
+        </button>
+      </p>
+
+    </center>
+
+    </div>
     <div id="outerContainer">
 
       <div id="sidebarContainer">

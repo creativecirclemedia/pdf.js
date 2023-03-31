@@ -1530,9 +1530,35 @@ dialog :link {
 .secondaryToolbarButton#pageRotateCcw,
 .secondaryToolbarButton#documentProperties,
 .horizontalToolbarSeparator,
-#cursorToolButtons {
+#cursorToolButtons,
+#iosFallback {
   display: none !important;
 }
 .alternateFullscreen {
   display: inline-block !important;
+}
+body.hiddenView {
+  background-color: white;
+}
+body.hiddenView #outerContainer {
+  display: none !important;
+}
+body.hiddenView #iosFallback {
+  display: block !important;
+}
+#iosFallback {
+  font-family: 'Open sans', sans-serif;
+  font-size: 18px;
+}
+#iosFallback h3,
+#iosFallback p {
+  margin-bottom: 20px !important;
+}
+#iosFallback button {
+  border: 0;
+  padding: 15px 20px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
 }
