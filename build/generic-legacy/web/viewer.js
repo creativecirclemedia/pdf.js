@@ -2482,7 +2482,14 @@ function webViewerAnnotationEditorStatesChanged(data) {
   PDFViewerApplication.externalServices.updateEditorStates(data);
 }
 function unsupportedIosPresent() {
-  return true;
+  if (/iP(hone|od|ad)/.test(navigator.platform)) {
+    var v = navigator.appVersion.match(/OS (\d+)_(\d+)_?(\d+)?/);
+    var version = [parseInt(v[1], 10), parseInt(v[2], 10), parseInt(v[3] || 0, 10)];
+    if (version[0] == 16 && version[1] == 3) {
+      return true;
+    }
+  }
+  return false;
 }
 const PDFPrintServiceFactory = {
   instance: {
@@ -9551,7 +9558,7 @@ class PDFViewer {
       writable: true,
       value: null
     });
-    const viewerVersion = '3.5.127';
+    const viewerVersion = '3.5.130';
     if (_pdfjsLib.version !== viewerVersion) {
       throw new Error(`The API version "${_pdfjsLib.version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -15111,8 +15118,8 @@ var _app_options = __webpack_require__(5);
 var _pdf_link_service = __webpack_require__(7);
 var _app = __webpack_require__(2);
 var _document$blockUnbloc, _document;
-const pdfjsVersion = '3.5.127';
-const pdfjsBuild = '437e6f4e4';
+const pdfjsVersion = '3.5.130';
+const pdfjsBuild = 'fa241001a';
 const AppConstants = {
   LinkTarget: _pdf_link_service.LinkTarget,
   RenderingStates: _ui_utils.RenderingStates,
