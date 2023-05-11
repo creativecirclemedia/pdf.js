@@ -168,17 +168,17 @@ See https://github.com/adobe-type-tools/cmap-resources
         <div id="secondaryToolbar" class="secondaryToolbar hidden doorHangerRight">
           <div id="secondaryToolbarButtonContainer">
 
-            <!-- <button id="secondaryOpenFile" class="secondaryToolbarButton visibleLargeView" title="Open File" tabindex="51" data-l10n-id="open_file">
+            <button style="display:none !important;" id="secondaryOpenFile" class="secondaryToolbarButton visibleLargeView" title="Open File" tabindex="51" data-l10n-id="open_file">
               <span data-l10n-id="open_file_label">Open</span>
-            </button> 
+            </button>
 
-            <!-- <button id="secondaryPrint" class="secondaryToolbarButton visibleMediumView" title="Print" tabindex="52" data-l10n-id="print">
+            <button style="display:none !important;" id="secondaryPrint" class="secondaryToolbarButton visibleMediumView" title="Print" tabindex="52" data-l10n-id="print">
               <span data-l10n-id="print_label">Print</span>
             </button>
 
-            <button id="secondaryDownload" class="secondaryToolbarButton visibleMediumView" title="Save" tabindex="53" data-l10n-id="save">
+            <button style="display:none !important;" id="secondaryDownload" class="secondaryToolbarButton visibleMediumView" title="Save" tabindex="53" data-l10n-id="save">
               <span data-l10n-id="save_label">Save</span>
-            </button> -->
+            </button>
 
             <div class="horizontalToolbarSeparator visibleLargeView"></div>
 
