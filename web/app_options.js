@@ -110,7 +110,7 @@ const defaultOptions = {
   },
   externalLinkTarget: {
     /** @type {number} */
-    value: 0,
+    value: 2,
     kind: OptionKind.VIEWER + OptionKind.PREFERENCE,
   },
   historyUpdateUrl: {
