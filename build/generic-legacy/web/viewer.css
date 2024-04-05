@@ -2051,8 +2051,8 @@ body {
 }
 
 #presentationMode::before {
-  -webkit-mask-image: var(--toolbarButton-presentationMode-icon);
-          mask-image: var(--toolbarButton-presentationMode-icon);
+  -webkit-mask-image: var(--toolbarButton-openFile-icon);
+          mask-image: var(--toolbarButton-openFile-icon);
 }
 
 #editorFreeText::before {

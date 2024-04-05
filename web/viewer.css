@@ -920,7 +920,7 @@ body {
 }
 
 #presentationMode::before {
-  mask-image: var(--toolbarButton-presentationMode-icon);
+  mask-image: var(--toolbarButton-openFile-icon);
 }
 
 #editorFreeText::before {
