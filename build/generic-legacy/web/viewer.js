@@ -3127,7 +3127,7 @@ const defaultOptions = {
     kind: OptionKind.VIEWER
   },
   externalLinkTarget: {
-    value: 0,
+    value: 2,
     kind: OptionKind.VIEWER + OptionKind.PREFERENCE
   },
   historyUpdateUrl: {
@@ -9560,7 +9560,7 @@ class PDFViewer {
       writable: true,
       value: null
     });
-    const viewerVersion = '3.5.134';
+    const viewerVersion = '3.5.136';
     if (_pdfjsLib.version !== viewerVersion) {
       throw new Error(`The API version "${_pdfjsLib.version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -13777,7 +13777,7 @@ class BasePreferences {
     "enablePermissions": false,
     "enablePrintAutoRotate": true,
     "enableScripting": true,
-    "externalLinkTarget": 0,
+    "externalLinkTarget": 2,
     "historyUpdateUrl": false,
     "ignoreDestinationZoom": false,
     "forcePageColors": false,
@@ -15120,8 +15120,8 @@ var _app_options = __webpack_require__(5);
 var _pdf_link_service = __webpack_require__(7);
 var _app = __webpack_require__(2);
 var _document$blockUnbloc, _document;
-const pdfjsVersion = '3.5.134';
-const pdfjsBuild = 'eb952be46';
+const pdfjsVersion = '3.5.136';
+const pdfjsBuild = '28ef9317f';
 const AppConstants = {
   LinkTarget: _pdf_link_service.LinkTarget,
   RenderingStates: _ui_utils.RenderingStates,
