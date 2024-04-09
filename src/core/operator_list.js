@@ -13,19 +13,13 @@
  * limitations under the License.
  */
 
-import {
-  ImageKind,
-  OPS,
-  RenderingIntentFlag,
-  shadow,
-  warn,
-} from "../shared/util.js";
+import { ImageKind, OPS, RenderingIntentFlag, warn } from "../shared/util.js";
 
 function addState(parentState, pattern, checkFn, iterateFn, processFn) {
   let state = parentState;
   for (let i = 0, ii = pattern.length - 1; i < ii; i++) {
     const item = pattern[i];
-    state = state[item] || (state[item] = []);
+    state = state[item] ||= [];
   }
   state[pattern.at(-1)] = {
     checkFn,
@@ -586,24 +580,19 @@ class QueueOptimizer extends NullOptimizer {
 }
 
 class OperatorList {
-  static get CHUNK_SIZE() {
-    return shadow(this, "CHUNK_SIZE", 1000);
-  }
+  static CHUNK_SIZE = 1000;
 
   // Close to chunk size.
-  static get CHUNK_SIZE_ABOUT() {
-    return shadow(this, "CHUNK_SIZE_ABOUT", this.CHUNK_SIZE - 5);
-  }
+  static CHUNK_SIZE_ABOUT = this.CHUNK_SIZE - 5;
 
   constructor(intent = 0, streamSink) {
     this._streamSink = streamSink;
     this.fnArray = [];
     this.argsArray = [];
-    if (streamSink && !(intent & RenderingIntentFlag.OPLIST)) {
-      this.optimizer = new QueueOptimizer(this);
-    } else {
-      this.optimizer = new NullOptimizer(this);
-    }
+    this.optimizer =
+      streamSink && !(intent & RenderingIntentFlag.OPLIST)
+        ? new QueueOptimizer(this)
+        : new NullOptimizer(this);
     this.dependencies = new Set();
     this._totalLength = 0;
     this.weight = 0;
@@ -703,11 +692,7 @@ class OperatorList {
         case OPS.paintInlineImageXObjectGroup:
         case OPS.paintImageMaskXObject:
           const arg = argsArray[i][0]; // First parameter in imgData.
-          if (
-            !arg.cached &&
-            arg.data &&
-            arg.data.buffer instanceof ArrayBuffer
-          ) {
+          if (!arg.cached && arg.data?.buffer instanceof ArrayBuffer) {
             transfers.push(arg.data.buffer);
           }
           break;
