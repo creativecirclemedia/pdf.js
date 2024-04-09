@@ -1538,6 +1538,10 @@ dialog :link {
 .toolbarButton#editorStamp,
 .splitToolbarButton#editorModeButtons
 .verticalToolbarSeparator,
+.secondaryToolbarButton#secondaryOpenFile,
+.secondaryToolbarButton#secondaryPrint,
+.secondaryToolbarButton#secondaryDownload,
+.secondaryToolbarButton#presentationMode,
 .secondaryToolbarButton#pageRotateCw,
 .secondaryToolbarButton#pageRotateCcw,
 .secondaryToolbarButton#documentProperties,
