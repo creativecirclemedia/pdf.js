@@ -7434,14 +7434,13 @@ const PDFViewerApplication = {
   web_print_service__WEBPACK_IMPORTED_MODULE_27__.PDFPrintServiceFactory.initGlobals(PDFViewerApplication);
 }
 {
-  const HOSTED_VIEWER_ORIGINS = ["null", "http://mozilla.github.io", "https://mozilla.github.io", "https://pdfjs-20240412.creativecirclemedia.com", "https://pdfjs.creativecirclemedia.com"];
+  const HOSTED_VIEWER_ORIGINS = ["null", "http://mozilla.github.io", "https://mozilla.github.io", "http://pdfjs-20240412.creativecirclemedia.com", "http://pdfjs.creativecirclemedia.com"];
   var validateFileURL = function (file) {
     if (!file) {
       return;
     }
     try {
       const viewerOrigin = new URL(window.location.href).origin || "null";
-      console.log(viewerOrigin);
       if (HOSTED_VIEWER_ORIGINS.includes(viewerOrigin)) {
         return;
       }
@@ -15607,7 +15606,7 @@ class PDFViewer {
   #scaleTimeoutId = null;
   #textLayerMode = _ui_utils_js__WEBPACK_IMPORTED_MODULE_13__.TextLayerMode.ENABLE;
   constructor(options) {
-    const viewerVersion = "4.1.430";
+    const viewerVersion = "4.1.432";
     if (pdfjs_lib__WEBPACK_IMPORTED_MODULE_12__.version !== viewerVersion) {
       throw new Error(`The API version "${pdfjs_lib__WEBPACK_IMPORTED_MODULE_12__.version}" does not match the Viewer version "${viewerVersion}".`);
     }
@@ -19267,8 +19266,8 @@ _app_js__WEBPACK_IMPORTED_MODULE_3__ = (__webpack_async_dependencies__.then ? (a
 
 
 
-const pdfjsVersion = "4.1.430";
-const pdfjsBuild = "6f2749bfe";
+const pdfjsVersion = "4.1.432";
+const pdfjsBuild = "40f1f41b6";
 const AppConstants = {
   LinkTarget: _pdf_link_service_js__WEBPACK_IMPORTED_MODULE_2__.LinkTarget,
   RenderingStates: _ui_utils_js__WEBPACK_IMPORTED_MODULE_0__.RenderingStates,
