@@ -2226,6 +2226,7 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
     }
     try {
       const viewerOrigin = new URL(window.location.href).origin || "null";
+      console.log(viewerOrigin);
       if (HOSTED_VIEWER_ORIGINS.includes(viewerOrigin)) {
         // Hosted or local viewer, allow for any file locations
         return;
