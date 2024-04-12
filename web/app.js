@@ -2216,7 +2216,7 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
     "null",
     "http://mozilla.github.io",
     "https://mozilla.github.io",
-    "http://vagrant1.crc.ms:8888",
+    "https://pdfjs-20240412.creativecirclemedia.com",
   ];
   // eslint-disable-next-line no-var
   var validateFileURL = function (file) {
