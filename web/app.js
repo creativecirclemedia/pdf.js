@@ -2216,8 +2216,8 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
     "null",
     "http://mozilla.github.io",
     "https://mozilla.github.io",
-    "https://pdfjs-20240412.creativecirclemedia.com",
-    "https://pdfjs.creativecirclemedia.com",
+    "http://pdfjs-20240412.creativecirclemedia.com",
+    "http://pdfjs.creativecirclemedia.com",
   ];
   // eslint-disable-next-line no-var
   var validateFileURL = function (file) {
@@ -2226,7 +2226,6 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
     }
     try {
       const viewerOrigin = new URL(window.location.href).origin || "null";
-      console.log(viewerOrigin);
       if (HOSTED_VIEWER_ORIGINS.includes(viewerOrigin)) {
         // Hosted or local viewer, allow for any file locations
         return;
