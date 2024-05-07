@@ -25,7 +25,7 @@ if(
     // Permanent auth attempt
     $entropy = $_ENV['PAUTH_SECRET'];
     $check_against = $_REQUEST['pauth'];
-    
+
   }else{
 
     // Temporary auth attempt

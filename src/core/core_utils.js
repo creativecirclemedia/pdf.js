@@ -38,22 +38,6 @@ function getLookupTableFactory(initializer) {
   };
 }
 
-function getArrayLookupTableFactory(initializer) {
-  let lookup;
-  return function () {
-    if (initializer) {
-      let arr = initializer();
-      initializer = null;
-      lookup = Object.create(null);
-      for (let i = 0, ii = arr.length; i < ii; i += 2) {
-        lookup[arr[i]] = arr[i + 1];
-      }
-      arr = null;
-    }
-    return lookup;
-  };
-}
-
 class MissingDataException extends BaseException {
   constructor(begin, end) {
     super(`Missing data [${begin}, ${end})`, "MissingDataException");
@@ -86,10 +70,7 @@ class XRefParseException extends BaseException {
  * @returns {Uint8Array}
  */
 function arrayBuffersToBytes(arr) {
-  if (
-    typeof PDFJSDev === "undefined" ||
-    PDFJSDev.test("!PRODUCTION || TESTING")
-  ) {
+  if (typeof PDFJSDev === "undefined" || PDFJSDev.test("TESTING")) {
     for (const item of arr) {
       assert(
         item instanceof ArrayBuffer,
@@ -156,10 +137,7 @@ function getInheritableProperty({
       if (stopWhenFound) {
         return value;
       }
-      if (!values) {
-        values = [];
-      }
-      values.push(value);
+      (values ||= []).push(value);
     }
     dict = dict.get("Parent");
   }
@@ -341,7 +319,7 @@ function _collectJS(entry, xref, list, parents) {
       } else if (typeof js === "string") {
         code = js;
       }
-      code = code && stringToPDFString(code).replaceAll("\x00", "");
+      code &&= stringToPDFString(code).replaceAll("\x00", "");
       if (code) {
         list.push(code);
       }
@@ -408,6 +386,17 @@ const XMLEntities = {
   /* ' */ 0x27: "&apos;",
 };
 
+function* codePointIter(str) {
+  for (let i = 0, ii = str.length; i < ii; i++) {
+    const char = str.codePointAt(i);
+    if (char > 0xd7ff && (char < 0xe000 || char > 0xfffd)) {
+      // char is represented by two u16
+      i++;
+    }
+    yield char;
+  }
+}
+
 function encodeToXmlString(str) {
   const buffer = [];
   let start = 0;
@@ -445,6 +434,31 @@ function encodeToXmlString(str) {
   return buffer.join("");
 }
 
+function validateFontName(fontFamily, mustWarn = false) {
+  // See https://developer.mozilla.org/en-US/docs/Web/CSS/string.
+  const m = /^("|').*("|')$/.exec(fontFamily);
+  if (m && m[1] === m[2]) {
+    const re = new RegExp(`[^\\\\]${m[1]}`);
+    if (re.test(fontFamily.slice(1, -1))) {
+      if (mustWarn) {
+        warn(`FontFamily contains unescaped ${m[1]}: ${fontFamily}.`);
+      }
+      return false;
+    }
+  } else {
+    // See https://developer.mozilla.org/en-US/docs/Web/CSS/custom-ident.
+    for (const ident of fontFamily.split(/[ \t]+/)) {
+      if (/^(\d|(-(\d|-)))/.test(ident) || !/^[\w-\\]+$/.test(ident)) {
+        if (mustWarn) {
+          warn(`FontFamily contains invalid <custom-ident>: ${fontFamily}.`);
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function validateCSSFont(cssFontInfo) {
   // See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style.
   const DEFAULT_CSS_FONT_OBLIQUE = "14";
@@ -469,27 +483,8 @@ function validateCSSFont(cssFontInfo) {
 
   const { fontFamily, fontWeight, italicAngle } = cssFontInfo;
 
-  // See https://developer.mozilla.org/en-US/docs/Web/CSS/string.
-  if (/^".*"$/.test(fontFamily)) {
-    if (/[^\\]"/.test(fontFamily.slice(1, fontFamily.length - 1))) {
-      warn(`XFA - FontFamily contains some unescaped ": ${fontFamily}.`);
-      return false;
-    }
-  } else if (/^'.*'$/.test(fontFamily)) {
-    if (/[^\\]'/.test(fontFamily.slice(1, fontFamily.length - 1))) {
-      warn(`XFA - FontFamily contains some unescaped ': ${fontFamily}.`);
-      return false;
-    }
-  } else {
-    // See https://developer.mozilla.org/en-US/docs/Web/CSS/custom-ident.
-    for (const ident of fontFamily.split(/[ \t]+/)) {
-      if (/^(\d|(-(\d|-)))/.test(ident) || !/^[\w-\\]+$/.test(ident)) {
-        warn(
-          `XFA - FontFamily contains some invalid <custom-ident>: ${fontFamily}.`
-        );
-        return false;
-      }
-    }
+  if (!validateFontName(fontFamily, true)) {
+    return false;
   }
 
   const weight = fontWeight ? fontWeight.toString() : "";
@@ -515,13 +510,13 @@ function recoverJsURL(str) {
   const URL_OPEN_METHODS = ["app.launchURL", "window.open", "xfa.host.gotoURL"];
   const regex = new RegExp(
     "^\\s*(" +
-      URL_OPEN_METHODS.join("|").split(".").join("\\.") +
+      URL_OPEN_METHODS.join("|").replaceAll(".", "\\.") +
       ")\\((?:'|\")([^'\"]*)(?:'|\")(?:,\\s*(\\w+)\\)|\\))",
     "i"
   );
 
   const jsUrl = regex.exec(str);
-  if (jsUrl && jsUrl[2]) {
+  if (jsUrl?.[2]) {
     const url = jsUrl[2];
     let newWindow = false;
 
@@ -616,17 +611,31 @@ function getRotationMatrix(rotation, width, height) {
   }
 }
 
+/**
+ * Get the number of bytes to use to represent the given positive integer.
+ * If n is zero, the function returns 0 which means that we don't need to waste
+ * a byte to represent it.
+ * @param {number} x - a positive integer.
+ * @returns {number}
+ */
+function getSizeInBytes(x) {
+  // n bits are required for numbers up to 2^n - 1.
+  // So for a number x, we need ceil(log2(1 + x)) bits.
+  return Math.ceil(Math.ceil(Math.log2(1 + x)) / 8);
+}
+
 export {
   arrayBuffersToBytes,
+  codePointIter,
   collectActions,
   encodeToXmlString,
   escapePDFName,
   escapeString,
-  getArrayLookupTableFactory,
   getInheritableProperty,
   getLookupTableFactory,
   getNewAnnotationsMap,
   getRotationMatrix,
+  getSizeInBytes,
   isAscii,
   isWhiteSpace,
   log2,
@@ -643,6 +652,7 @@ export {
   stringToUTF16String,
   toRomanNumerals,
   validateCSSFont,
+  validateFontName,
   XRefEntryException,
   XRefParseException,
 };

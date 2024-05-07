@@ -26,26 +26,24 @@
 import {
   AbortException,
   AnnotationMode,
-  createPromiseCapability,
   PixelsPerInch,
   RenderingCancelledException,
   setLayerDimensions,
   shadow,
-  SVGGraphics,
 } from "pdfjs-lib";
 import {
   approximateFraction,
   DEFAULT_SCALE,
   OutputScale,
-  RendererType,
   RenderingStates,
   roundToDivide,
   TextLayerMode,
 } from "./ui_utils.js";
 import { AnnotationEditorLayerBuilder } from "./annotation_editor_layer_builder.js";
 import { AnnotationLayerBuilder } from "./annotation_layer_builder.js";
-import { compatibilityParams } from "./app_options.js";
-import { NullL10n } from "./l10n_utils.js";
+import { AppOptions } from "./app_options.js";
+import { DrawLayerBuilder } from "./draw_layer_builder.js";
+import { GenericL10n } from "web-null_l10n";
 import { SimpleLinkService } from "./pdf_link_service.js";
 import { StructTreeLayerBuilder } from "./struct_tree_layer_builder.js";
 import { TextAccessibilityManager } from "./text_accessibility.js";
@@ -74,40 +72,40 @@ import { XfaLayerBuilder } from "./xfa_layer_builder.js";
  *   The default value is `AnnotationMode.ENABLE_FORMS`.
  * @property {string} [imageResourcesPath] - Path for image resources, mainly
  *   for annotation icons. Include trailing slash.
- * @property {boolean} [useOnlyCssZoom] - Enables CSS only zooming. The default
- *   value is `false`.
- * @property {boolean} [isOffscreenCanvasSupported] - Allows to use an
- *   OffscreenCanvas if needed.
  * @property {number} [maxCanvasPixels] - The maximum supported canvas size in
- *   total pixels, i.e. width * height. Use -1 for no limit. The default value
- *   is 4096 * 4096 (16 mega-pixels).
+ *   total pixels, i.e. width * height. Use `-1` for no limit, or `0` for
+ *   CSS-only zooming. The default value is 4096 * 8192 (32 mega-pixels).
  * @property {Object} [pageColors] - Overwrites background and foreground colors
  *   with user defined ones in order to improve readability in high contrast
  *   mode.
  * @property {IL10n} [l10n] - Localization service.
- * @property {function} [layerProperties] - The function that is used to lookup
+ * @property {Object} [layerProperties] - The object that is used to lookup
  *   the necessary layer-properties.
  */
 
-const MAX_CANVAS_PIXELS = compatibilityParams.maxCanvasPixels || 16777216;
+const DEFAULT_LAYER_PROPERTIES =
+  typeof PDFJSDev === "undefined" || !PDFJSDev.test("COMPONENTS")
+    ? null
+    : {
+        annotationEditorUIManager: null,
+        annotationStorage: null,
+        downloadManager: null,
+        enableScripting: false,
+        fieldObjectsPromise: null,
+        findController: null,
+        hasJSActionsPromise: null,
+        get linkService() {
+          return new SimpleLinkService();
+        },
+      };
 
-const DEFAULT_LAYER_PROPERTIES = () => {
-  if (typeof PDFJSDev === "undefined" || !PDFJSDev.test("COMPONENTS")) {
-    return null;
-  }
-  return {
-    annotationEditorUIManager: null,
-    annotationStorage: null,
-    downloadManager: null,
-    enableScripting: false,
-    fieldObjectsPromise: null,
-    findController: null,
-    hasJSActionsPromise: null,
-    get linkService() {
-      return new SimpleLinkService();
-    },
-  };
-};
+const LAYERS_ORDER = new Map([
+  ["canvasWrapper", 0],
+  ["textLayer", 1],
+  ["annotationLayer", 2],
+  ["annotationEditorLayer", 3],
+  ["xfaLayer", 3],
+]);
 
 /**
  * @implements {IRenderableView}
@@ -115,18 +113,29 @@ const DEFAULT_LAYER_PROPERTIES = () => {
 class PDFPageView {
   #annotationMode = AnnotationMode.ENABLE_FORMS;
 
+  #hasRestrictedScaling = false;
+
   #layerProperties = null;
 
   #loadingId = null;
 
   #previousRotation = null;
 
+  #renderError = null;
+
   #renderingState = RenderingStates.INITIAL;
 
+  #textLayerMode = TextLayerMode.ENABLE;
+
   #useThumbnailCanvas = {
+    directDrawing: true,
     initialOptionalContent: true,
     regularAnnotations: true,
   };
+
+  #viewportMap = new WeakMap();
+
+  #layers = [null, null, null, null];
 
   /**
    * @param {PDFPageViewOptions} options
@@ -147,36 +156,26 @@ class PDFPageView {
     this.pdfPageRotate = defaultViewport.rotation;
     this._optionalContentConfigPromise =
       options.optionalContentConfigPromise || null;
-    this.hasRestrictedScaling = false;
-    this.textLayerMode = options.textLayerMode ?? TextLayerMode.ENABLE;
+    this.#textLayerMode = options.textLayerMode ?? TextLayerMode.ENABLE;
     this.#annotationMode =
       options.annotationMode ?? AnnotationMode.ENABLE_FORMS;
     this.imageResourcesPath = options.imageResourcesPath || "";
-    this.useOnlyCssZoom = options.useOnlyCssZoom || false;
-    this.isOffscreenCanvasSupported =
-      options.isOffscreenCanvasSupported ?? true;
-    this.maxCanvasPixels = options.maxCanvasPixels || MAX_CANVAS_PIXELS;
+    this.maxCanvasPixels =
+      options.maxCanvasPixels ?? AppOptions.get("maxCanvasPixels");
     this.pageColors = options.pageColors || null;
 
     this.eventBus = options.eventBus;
     this.renderingQueue = options.renderingQueue;
-    if (
-      typeof PDFJSDev === "undefined" ||
-      PDFJSDev.test("!PRODUCTION || GENERIC")
-    ) {
-      this.renderer = options.renderer || RendererType.CANVAS;
+    this.l10n = options.l10n;
+    if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
+      this.l10n ||= new GenericL10n();
     }
-    this.l10n = options.l10n || NullL10n;
 
-    this.paintTask = null;
-    this.paintedViewportMap = new WeakMap();
+    this.renderTask = null;
     this.resume = null;
-    this._renderError = null;
-    if (
-      typeof PDFJSDev === "undefined" ||
-      PDFJSDev.test("!PRODUCTION || GENERIC")
-    ) {
+    if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
       this._isStandalone = !this.renderingQueue?.hasViewer();
+      this._container = container;
     }
 
     this._annotationCanvasMap = null;
@@ -187,22 +186,21 @@ class PDFPageView {
     this.zoomLayer = null;
     this.xfaLayer = null;
     this.structTreeLayer = null;
+    this.drawLayer = null;
 
     const div = document.createElement("div");
     div.className = "page";
     div.setAttribute("data-page-number", this.id);
     div.setAttribute("role", "region");
-    this.l10n.get("page_landmark", { page: this.id }).then(msg => {
-      div.setAttribute("aria-label", msg);
-    });
+    div.setAttribute("data-l10n-id", "pdfjs-page-landmark");
+    div.setAttribute("data-l10n-args", JSON.stringify({ page: this.id }));
     this.div = div;
 
     this.#setDimensions();
     container?.append(div);
 
     if (
-      (typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("!PRODUCTION || GENERIC")) &&
+      (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) &&
       this._isStandalone
     ) {
       // Ensure that the various layers always get the correct initial size,
@@ -226,7 +224,30 @@ class PDFPageView {
             optionalContentConfig.hasInitialVisibility;
         });
       }
+
+      // Ensure that Fluent is connected in e.g. the COMPONENTS build.
+      if (!options.l10n) {
+        this.l10n.translate(this.div);
+      }
     }
+  }
+
+  #addLayer(div, name) {
+    const pos = LAYERS_ORDER.get(name);
+    const oldDiv = this.#layers[pos];
+    this.#layers[pos] = div;
+    if (oldDiv) {
+      oldDiv.replaceWith(div);
+      return;
+    }
+    for (let i = pos - 1; i >= 0; i--) {
+      const layer = this.#layers[i];
+      if (layer) {
+        layer.after(div);
+        return;
+      }
+    }
+    this.div.prepend(div);
   }
 
   get renderingState() {
@@ -284,6 +305,33 @@ class PDFPageView {
   }
 
   setPdfPage(pdfPage) {
+    if (
+      (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) &&
+      this._isStandalone &&
+      (this.pageColors?.foreground === "CanvasText" ||
+        this.pageColors?.background === "Canvas")
+    ) {
+      this._container?.style.setProperty(
+        "--hcm-highlight-filter",
+        pdfPage.filterFactory.addHighlightHCMFilter(
+          "highlight",
+          "CanvasText",
+          "Canvas",
+          "HighlightText",
+          "Highlight"
+        )
+      );
+      this._container?.style.setProperty(
+        "--hcm-highlight-selected-filter",
+        pdfPage.filterFactory.addHighlightHCMFilter(
+          "highlight_selected",
+          "CanvasText",
+          "Canvas",
+          "HighlightText",
+          "Highlight"
+        )
+      );
+    }
     this.pdfPage = pdfPage;
     this.pdfPageRotate = pdfPage.rotate;
 
@@ -308,7 +356,7 @@ class PDFPageView {
       new TextHighlighter({
         pageIndex: this.id - 1,
         eventBus: this.eventBus,
-        findController: this.#layerProperties().findController,
+        findController: this.#layerProperties.findController,
       })
     );
   }
@@ -345,17 +393,36 @@ class PDFPageView {
     }
   }
 
+  async #renderDrawLayer() {
+    try {
+      await this.drawLayer.render("display");
+    } catch (ex) {
+      console.error(`#renderDrawLayer: "${ex}".`);
+    }
+  }
+
   async #renderXfaLayer() {
     let error = null;
     try {
       const result = await this.xfaLayer.render(this.viewport, "display");
       if (result?.textDivs && this._textHighlighter) {
+        // Given that the following method fetches the text asynchronously we
+        // can invoke it *before* appending the xfaLayer to the DOM (below),
+        // since a pending search-highlight/scroll operation thus won't run
+        // until after the xfaLayer is available in the viewer.
         this.#buildXfaTextContentItems(result.textDivs);
       }
     } catch (ex) {
       console.error(`#renderXfaLayer: "${ex}".`);
       error = ex;
     } finally {
+      if (this.xfaLayer?.div) {
+        // Pause translation when inserting the xfaLayer in the DOM.
+        this.l10n.pause();
+        this.#addLayer(this.xfaLayer.div, "xfaLayer");
+        this.l10n.resume();
+      }
+
       this.eventBus.dispatch("xfalayerrendered", {
         source: this,
         pageNumber: this.id,
@@ -375,6 +442,7 @@ class PDFPageView {
       if (!textLayer.renderingDone) {
         const readableStream = pdfPage.streamTextContent({
           includeMarkedContent: true,
+          disableNormalization: true,
         });
         textLayer.setTextContentSource(readableStream);
       }
@@ -415,7 +483,10 @@ class PDFPageView {
       : null);
     const treeDom = this.structTreeLayer?.render(tree);
     if (treeDom) {
+      // Pause translation when inserting the structTree in the DOM.
+      this.l10n.pause();
       this.canvas?.append(treeDom);
+      this.l10n.resume();
     }
     this.structTreeLayer?.show();
   }
@@ -438,7 +509,7 @@ class PDFPageView {
       return;
     }
     const zoomLayerCanvas = this.zoomLayer.firstChild;
-    this.paintedViewportMap.delete(zoomLayerCanvas);
+    this.#viewportMap.delete(zoomLayerCanvas);
     // Zeroing the width and height causes Firefox to release graphics
     // resources immediately, which can greatly reduce memory consumption.
     zoomLayerCanvas.width = 0;
@@ -487,6 +558,10 @@ class PDFPageView {
           continue;
       }
       node.remove();
+      const layerIndex = this.#layers.indexOf(node);
+      if (layerIndex >= 0) {
+        this.#layers[layerIndex] = null;
+      }
     }
     div.removeAttribute("data-loaded");
 
@@ -510,7 +585,7 @@ class PDFPageView {
 
     if (!zoomLayerNode) {
       if (this.canvas) {
-        this.paintedViewportMap.delete(this.canvas);
+        this.#viewportMap.delete(this.canvas);
         // Zeroing the width and height causes Firefox to release graphics
         // resources immediately, which can greatly reduce memory consumption.
         this.canvas.width = 0;
@@ -519,16 +594,22 @@ class PDFPageView {
       }
       this._resetZoomLayer();
     }
-    if (
-      (typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("!PRODUCTION || GENERIC")) &&
-      this.svg
-    ) {
-      this.paintedViewportMap.delete(this.svg);
-      delete this.svg;
-    }
   }
 
+  /**
+   * @typedef {Object} PDFPageViewUpdateParameters
+   * @property {number} [scale] The new scale, if specified.
+   * @property {number} [rotation] The new rotation, if specified.
+   * @property {Promise<OptionalContentConfig>} [optionalContentConfigPromise]
+   *   A promise that is resolved with an {@link OptionalContentConfig}
+   *   instance. The default value is `null`.
+   * @property {number} [drawingDelay]
+   */
+
+  /**
+   * Update e.g. the scale and/or rotation of the page.
+   * @param {PDFPageViewUpdateParameters} params
+   */
   update({
     scale = 0,
     rotation = null,
@@ -554,6 +635,7 @@ class PDFPageView {
           optionalContentConfig.hasInitialVisibility;
       });
     }
+    this.#useThumbnailCanvas.directDrawing = true;
 
     const totalRotation = (this.rotation + this.pdfPageRotate) % 360;
     this.viewport = this.viewport.clone({
@@ -563,58 +645,32 @@ class PDFPageView {
     this.#setDimensions();
 
     if (
-      (typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("!PRODUCTION || GENERIC")) &&
+      (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) &&
       this._isStandalone
     ) {
-      this.div.parentNode?.style.setProperty(
-        "--scale-factor",
-        this.viewport.scale
-      );
+      this._container?.style.setProperty("--scale-factor", this.viewport.scale);
     }
-
-    if (
-      (typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("!PRODUCTION || GENERIC")) &&
-      this.svg
-    ) {
-      this.cssTransform({
-        target: this.svg,
-        redrawAnnotationLayer: true,
-        redrawAnnotationEditorLayer: true,
-        redrawXfaLayer: true,
-        redrawTextLayer: true,
-      });
-
-      this.eventBus.dispatch("pagerendered", {
-        source: this,
-        pageNumber: this.id,
-        cssTransform: true,
-        timestamp: performance.now(),
-        error: this._renderError,
-      });
-      return;
-    }
-
-    let isScalingRestricted = false;
-    if (this.canvas && this.maxCanvasPixels > 0) {
-      const outputScale = this.outputScale;
-      if (
-        ((Math.floor(this.viewport.width) * outputScale.sx) | 0) *
-          ((Math.floor(this.viewport.height) * outputScale.sy) | 0) >
-        this.maxCanvasPixels
-      ) {
-        isScalingRestricted = true;
-      }
-    }
-    const postponeDrawing = drawingDelay >= 0 && drawingDelay < 1000;
 
     if (this.canvas) {
-      if (
-        postponeDrawing ||
-        this.useOnlyCssZoom ||
-        (this.hasRestrictedScaling && isScalingRestricted)
-      ) {
+      let onlyCssZoom = false;
+      if (this.#hasRestrictedScaling) {
+        if (
+          (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) &&
+          this.maxCanvasPixels === 0
+        ) {
+          onlyCssZoom = true;
+        } else if (this.maxCanvasPixels > 0) {
+          const { width, height } = this.viewport;
+          const { sx, sy } = this.outputScale;
+          onlyCssZoom =
+            ((Math.floor(width) * sx) | 0) * ((Math.floor(height) * sy) | 0) >
+            this.maxCanvasPixels;
+        }
+      }
+      const postponeDrawing =
+        !onlyCssZoom && drawingDelay >= 0 && drawingDelay < 1000;
+
+      if (postponeDrawing || onlyCssZoom) {
         if (
           postponeDrawing &&
           this.renderingState !== RenderingStates.FINISHED
@@ -632,6 +688,9 @@ class PDFPageView {
           // the rendering state to INITIAL, hence the next call to
           // PDFViewer.update() will trigger a redraw (if it's mandatory).
           this.renderingState = RenderingStates.FINISHED;
+          // Ensure that the thumbnails won't become partially (or fully) blank,
+          // if the sidebar is opened before the actual rendering is done.
+          this.#useThumbnailCanvas.directDrawing = false;
         }
 
         this.cssTransform({
@@ -643,12 +702,17 @@ class PDFPageView {
           hideTextLayer: postponeDrawing,
         });
 
+        if (postponeDrawing) {
+          // The "pagerendered"-event will be dispatched once the actual
+          // rendering is done, hence don't dispatch it here as well.
+          return;
+        }
         this.eventBus.dispatch("pagerendered", {
           source: this,
           pageNumber: this.id,
           cssTransform: true,
           timestamp: performance.now(),
-          error: this._renderError,
+          error: this.#renderError,
         });
         return;
       }
@@ -680,9 +744,9 @@ class PDFPageView {
     keepTextLayer = false,
     cancelExtraDelay = 0,
   } = {}) {
-    if (this.paintTask) {
-      this.paintTask.cancel(cancelExtraDelay);
-      this.paintTask = null;
+    if (this.renderTask) {
+      this.renderTask.cancel(cancelExtraDelay);
+      this.renderTask = null;
     }
     this.resume = null;
 
@@ -705,6 +769,10 @@ class PDFPageView {
       this.annotationEditorLayer &&
       (!keepAnnotationEditorLayer || !this.annotationEditorLayer.div)
     ) {
+      if (this.drawLayer) {
+        this.drawLayer.cancel();
+        this.drawLayer = null;
+      }
       this.annotationEditorLayer.cancel();
       this.annotationEditorLayer = null;
     }
@@ -723,29 +791,20 @@ class PDFPageView {
     redrawTextLayer = false,
     hideTextLayer = false,
   }) {
-    // Scale target (canvas or svg), its wrapper and page container.
-
-    if (target instanceof HTMLCanvasElement) {
-      if (!target.hasAttribute("zooming")) {
-        target.setAttribute("zooming", true);
-        const { style } = target;
-        style.width = style.height = "";
-      }
-    } else {
-      const div = this.div;
-      const { width, height } = this.viewport;
-
-      target.style.width =
-        target.parentNode.style.width =
-        div.style.width =
-          Math.floor(width) + "px";
-      target.style.height =
-        target.parentNode.style.height =
-        div.style.height =
-          Math.floor(height) + "px";
+    // Scale target (canvas), its wrapper and page container.
+    if (
+      (typeof PDFJSDev === "undefined" || PDFJSDev.test("TESTING")) &&
+      !(target instanceof HTMLCanvasElement)
+    ) {
+      throw new Error("Expected `target` to be a canvas.");
+    }
+    if (!target.hasAttribute("zooming")) {
+      target.setAttribute("zooming", true);
+      const { style } = target;
+      style.width = style.height = "";
     }
 
-    const originalViewport = this.paintedViewportMap.get(target);
+    const originalViewport = this.#viewportMap.get(target);
     if (this.viewport !== originalViewport) {
       // The canvas may have been originally rotated; rotate relative to that.
       const relativeRotation =
@@ -759,16 +818,16 @@ class PDFPageView {
         scaleX = height / width;
         scaleY = width / height;
       }
-
-      if (absRotation !== 0) {
-        target.style.transform = `rotate(${relativeRotation}deg) scale(${scaleX}, ${scaleY})`;
-      }
+      target.style.transform = `rotate(${relativeRotation}deg) scale(${scaleX}, ${scaleY})`;
     }
 
     if (redrawAnnotationLayer && this.annotationLayer) {
       this.#renderAnnotationLayer();
     }
     if (redrawAnnotationEditorLayer && this.annotationEditorLayer) {
+      if (this.drawLayer) {
+        this.#renderDrawLayer();
+      }
       this.#renderAnnotationEditorLayer();
     }
     if (redrawXfaLayer && this.xfaLayer) {
@@ -797,16 +856,50 @@ class PDFPageView {
     return this.viewport.convertToPdfPoint(x, y);
   }
 
-  draw() {
+  async #finishRenderTask(renderTask, error = null) {
+    // The renderTask may have been replaced by a new one, so only remove
+    // the reference to the renderTask if it matches the one that is
+    // triggering this callback.
+    if (renderTask === this.renderTask) {
+      this.renderTask = null;
+    }
+
+    if (error instanceof RenderingCancelledException) {
+      this.#renderError = null;
+      return;
+    }
+    this.#renderError = error;
+
+    this.renderingState = RenderingStates.FINISHED;
+    this._resetZoomLayer(/* removeFromDOM = */ true);
+
+    // Ensure that the thumbnails won't become partially (or fully) blank,
+    // for documents that contain interactive form elements.
+    this.#useThumbnailCanvas.regularAnnotations = !renderTask.separateAnnots;
+
+    this.eventBus.dispatch("pagerendered", {
+      source: this,
+      pageNumber: this.id,
+      cssTransform: false,
+      timestamp: performance.now(),
+      error: this.#renderError,
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async draw() {
     if (this.renderingState !== RenderingStates.INITIAL) {
       console.error("Must be in new state before drawing");
       this.reset(); // Ensure that we reset all state to prevent issues.
     }
-    const { div, pdfPage } = this;
+    const { div, l10n, pageColors, pdfPage, viewport } = this;
 
     if (!pdfPage) {
       this.renderingState = RenderingStates.FINISHED;
-      return Promise.reject(new Error("pdfPage is not loaded"));
+      throw new Error("pdfPage is not loaded");
     }
 
     this.renderingState = RenderingStates.RUNNING;
@@ -815,11 +908,12 @@ class PDFPageView {
     // overflow will be hidden in Firefox.
     const canvasWrapper = document.createElement("div");
     canvasWrapper.classList.add("canvasWrapper");
-    div.append(canvasWrapper);
+    canvasWrapper.setAttribute("aria-hidden", true);
+    this.#addLayer(canvasWrapper, "canvasWrapper");
 
     if (
       !this.textLayer &&
-      this.textLayerMode !== TextLayerMode.DISABLE &&
+      this.#textLayerMode !== TextLayerMode.DISABLE &&
       !pdfPage.isPureXfa
     ) {
       this._accessibilityManager ||= new TextAccessibilityManager();
@@ -827,9 +921,15 @@ class PDFPageView {
       this.textLayer = new TextLayerBuilder({
         highlighter: this._textHighlighter,
         accessibilityManager: this._accessibilityManager,
-        isOffscreenCanvasSupported: this.isOffscreenCanvasSupported,
+        enablePermissions:
+          this.#textLayerMode === TextLayerMode.ENABLE_PERMISSIONS,
+        onAppend: textLayerDiv => {
+          // Pause translation when inserting the textLayer in the DOM.
+          this.l10n.pause();
+          this.#addLayer(textLayerDiv, "textLayer");
+          this.l10n.resume();
+        },
       });
-      div.append(this.textLayer.div);
     }
 
     if (
@@ -843,128 +943,172 @@ class PDFPageView {
         fieldObjectsPromise,
         hasJSActionsPromise,
         linkService,
-      } = this.#layerProperties();
+      } = this.#layerProperties;
 
       this._annotationCanvasMap ||= new Map();
       this.annotationLayer = new AnnotationLayerBuilder({
-        pageDiv: div,
         pdfPage,
         annotationStorage,
         imageResourcesPath: this.imageResourcesPath,
         renderForms: this.#annotationMode === AnnotationMode.ENABLE_FORMS,
         linkService,
         downloadManager,
-        l10n: this.l10n,
         enableScripting,
         hasJSActionsPromise,
         fieldObjectsPromise,
         annotationCanvasMap: this._annotationCanvasMap,
         accessibilityManager: this._accessibilityManager,
+        onAppend: annotationLayerDiv => {
+          this.#addLayer(annotationLayerDiv, "annotationLayer");
+        },
       });
     }
 
-    let renderContinueCallback = null;
-    if (this.renderingQueue) {
-      renderContinueCallback = cont => {
-        if (!this.renderingQueue.isHighestPriority(this)) {
-          this.renderingState = RenderingStates.PAUSED;
-          this.resume = () => {
-            this.renderingState = RenderingStates.RUNNING;
-            cont();
-          };
-          return;
-        }
-        cont();
-      };
-    }
-
-    const finishPaintTask = async (error = null) => {
-      // The paintTask may have been replaced by a new one, so only remove
-      // the reference to the paintTask if it matches the one that is
-      // triggering this callback.
-      if (paintTask === this.paintTask) {
-        this.paintTask = null;
-      }
-
-      if (error instanceof RenderingCancelledException) {
-        this._renderError = null;
+    const renderContinueCallback = cont => {
+      showCanvas?.(false);
+      if (this.renderingQueue && !this.renderingQueue.isHighestPriority(this)) {
+        this.renderingState = RenderingStates.PAUSED;
+        this.resume = () => {
+          this.renderingState = RenderingStates.RUNNING;
+          cont();
+        };
         return;
       }
-      this._renderError = error;
-
-      this.renderingState = RenderingStates.FINISHED;
-      this._resetZoomLayer(/* removeFromDOM = */ true);
-
-      // Ensure that the thumbnails won't become partially (or fully) blank,
-      // for documents that contain interactive form elements.
-      this.#useThumbnailCanvas.regularAnnotations = !paintTask.separateAnnots;
-
-      this.eventBus.dispatch("pagerendered", {
-        source: this,
-        pageNumber: this.id,
-        cssTransform: false,
-        timestamp: performance.now(),
-        error: this._renderError,
-      });
-
-      if (error) {
-        throw error;
-      }
+      cont();
     };
 
-    const paintTask =
-      (typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("!PRODUCTION || GENERIC")) &&
-      this.renderer === RendererType.SVG
-        ? this.paintOnSvg(canvasWrapper)
-        : this.paintOnCanvas(canvasWrapper);
-    paintTask.onRenderContinue = renderContinueCallback;
-    this.paintTask = paintTask;
+    const { width, height } = viewport;
+    const canvas = document.createElement("canvas");
+    canvas.setAttribute("role", "presentation");
 
-    const resultPromise = paintTask.promise.then(
-      () => {
-        return finishPaintTask(null).then(async () => {
-          this.#renderTextLayer();
+    // Keep the canvas hidden until the first draw callback, or until drawing
+    // is complete when `!this.renderingQueue`, to prevent black flickering.
+    canvas.hidden = true;
+    const hasHCM = !!(pageColors?.background && pageColors?.foreground);
 
-          if (this.annotationLayer) {
-            await this.#renderAnnotationLayer();
-          }
+    let showCanvas = isLastShow => {
+      // In HCM, a final filter is applied on the canvas which means that
+      // before it's applied we've normal colors. Consequently, to avoid to have
+      // a final flash we just display it once all the drawing is done.
+      if (!hasHCM || isLastShow) {
+        canvas.hidden = false;
+        showCanvas = null; // Only invoke the function once.
+      }
+    };
+    canvasWrapper.append(canvas);
+    this.canvas = canvas;
 
-          if (!this.annotationEditorLayer) {
-            const { annotationEditorUIManager } = this.#layerProperties();
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const outputScale = (this.outputScale = new OutputScale());
 
-            if (!annotationEditorUIManager) {
-              return;
-            }
-            this.annotationEditorLayer = new AnnotationEditorLayerBuilder({
-              uiManager: annotationEditorUIManager,
-              pageDiv: div,
-              pdfPage,
-              l10n: this.l10n,
-              accessibilityManager: this._accessibilityManager,
-            });
-          }
-          this.#renderAnnotationEditorLayer();
+    if (
+      (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) &&
+      this.maxCanvasPixels === 0
+    ) {
+      const invScale = 1 / this.scale;
+      // Use a scale that makes the canvas have the originally intended size
+      // of the page.
+      outputScale.sx *= invScale;
+      outputScale.sy *= invScale;
+      this.#hasRestrictedScaling = true;
+    } else if (this.maxCanvasPixels > 0) {
+      const pixelsInViewport = width * height;
+      const maxScale = Math.sqrt(this.maxCanvasPixels / pixelsInViewport);
+      if (outputScale.sx > maxScale || outputScale.sy > maxScale) {
+        outputScale.sx = maxScale;
+        outputScale.sy = maxScale;
+        this.#hasRestrictedScaling = true;
+      } else {
+        this.#hasRestrictedScaling = false;
+      }
+    }
+    const sfx = approximateFraction(outputScale.sx);
+    const sfy = approximateFraction(outputScale.sy);
+
+    canvas.width = roundToDivide(width * outputScale.sx, sfx[0]);
+    canvas.height = roundToDivide(height * outputScale.sy, sfy[0]);
+    const { style } = canvas;
+    style.width = roundToDivide(width, sfx[1]) + "px";
+    style.height = roundToDivide(height, sfy[1]) + "px";
+
+    // Add the viewport so it's known what it was originally drawn with.
+    this.#viewportMap.set(canvas, viewport);
+
+    // Rendering area
+    const transform = outputScale.scaled
+      ? [outputScale.sx, 0, 0, outputScale.sy, 0, 0]
+      : null;
+    const renderContext = {
+      canvasContext: ctx,
+      transform,
+      viewport,
+      annotationMode: this.#annotationMode,
+      optionalContentConfigPromise: this._optionalContentConfigPromise,
+      annotationCanvasMap: this._annotationCanvasMap,
+      pageColors,
+    };
+    const renderTask = (this.renderTask = this.pdfPage.render(renderContext));
+    renderTask.onContinue = renderContinueCallback;
+
+    const resultPromise = renderTask.promise.then(
+      async () => {
+        showCanvas?.(true);
+        await this.#finishRenderTask(renderTask);
+
+        this.#renderTextLayer();
+
+        if (this.annotationLayer) {
+          await this.#renderAnnotationLayer();
+        }
+
+        const { annotationEditorUIManager } = this.#layerProperties;
+
+        if (!annotationEditorUIManager) {
+          return;
+        }
+
+        this.drawLayer ||= new DrawLayerBuilder({
+          pageIndex: this.id,
         });
+        await this.#renderDrawLayer();
+        this.drawLayer.setParent(canvasWrapper);
+
+        if (!this.annotationEditorLayer) {
+          this.annotationEditorLayer = new AnnotationEditorLayerBuilder({
+            uiManager: annotationEditorUIManager,
+            pdfPage,
+            l10n,
+            accessibilityManager: this._accessibilityManager,
+            annotationLayer: this.annotationLayer?.annotationLayer,
+            textLayer: this.textLayer,
+            drawLayer: this.drawLayer.getDrawLayer(),
+            onAppend: annotationEditorLayerDiv => {
+              this.#addLayer(annotationEditorLayerDiv, "annotationEditorLayer");
+            },
+          });
+        }
+        this.#renderAnnotationEditorLayer();
       },
-      function (reason) {
-        return finishPaintTask(reason);
+      error => {
+        // When zooming with a `drawingDelay` set, avoid temporarily showing
+        // a black canvas if rendering was cancelled before the `onContinue`-
+        // callback had been invoked at least once.
+        if (!(error instanceof RenderingCancelledException)) {
+          showCanvas?.(true);
+        }
+        return this.#finishRenderTask(renderTask, error);
       }
     );
 
     if (pdfPage.isPureXfa) {
       if (!this.xfaLayer) {
-        const { annotationStorage, linkService } = this.#layerProperties();
+        const { annotationStorage, linkService } = this.#layerProperties;
 
         this.xfaLayer = new XfaLayerBuilder({
-          pageDiv: div,
           pdfPage,
           annotationStorage,
           linkService,
         });
-      } else if (this.xfaLayer.div) {
-        // The xfa layer needs to stay on top.
-        div.append(this.xfaLayer.div);
       }
       this.#renderXfaLayer();
     }
@@ -978,185 +1122,16 @@ class PDFPageView {
     return resultPromise;
   }
 
-  paintOnCanvas(canvasWrapper) {
-    const renderCapability = createPromiseCapability();
-    const result = {
-      promise: renderCapability.promise,
-      onRenderContinue(cont) {
-        cont();
-      },
-      cancel(extraDelay = 0) {
-        renderTask.cancel(extraDelay);
-      },
-      get separateAnnots() {
-        return renderTask.separateAnnots;
-      },
-    };
-
-    const viewport = this.viewport;
-    const { width, height } = viewport;
-    const canvas = document.createElement("canvas");
-    canvas.setAttribute("role", "presentation");
-
-    // Keep the canvas hidden until the first draw callback, or until drawing
-    // is complete when `!this.renderingQueue`, to prevent black flickering.
-    canvas.hidden = true;
-    let isCanvasHidden = true;
-    const hasHCM = !!(
-      this.pageColors?.background && this.pageColors?.foreground
-    );
-    const showCanvas = function (isLastShow) {
-      // In HCM, a final filter is applied on the canvas which means that
-      // before it's applied we've normal colors. Consequently, to avoid to have
-      // a final flash we just display it once all the drawing is done.
-      if (isCanvasHidden && (!hasHCM || isLastShow)) {
-        canvas.hidden = false;
-        isCanvasHidden = false;
-      }
-    };
-
-    canvasWrapper.append(canvas);
-    this.canvas = canvas;
-
-    const ctx = canvas.getContext("2d", { alpha: false });
-    const outputScale = (this.outputScale = new OutputScale());
-
-    if (this.useOnlyCssZoom) {
-      const actualSizeViewport = viewport.clone({
-        scale: PixelsPerInch.PDF_TO_CSS_UNITS,
-      });
-      // Use a scale that makes the canvas have the originally intended size
-      // of the page.
-      outputScale.sx *= actualSizeViewport.width / width;
-      outputScale.sy *= actualSizeViewport.height / height;
-    }
-
-    if (this.maxCanvasPixels > 0) {
-      const pixelsInViewport = width * height;
-      const maxScale = Math.sqrt(this.maxCanvasPixels / pixelsInViewport);
-      if (outputScale.sx > maxScale || outputScale.sy > maxScale) {
-        outputScale.sx = maxScale;
-        outputScale.sy = maxScale;
-        this.hasRestrictedScaling = true;
-      } else {
-        this.hasRestrictedScaling = false;
-      }
-    }
-
-    const sfx = approximateFraction(outputScale.sx);
-    const sfy = approximateFraction(outputScale.sy);
-
-    canvas.width = roundToDivide(viewport.width * outputScale.sx, sfx[0]);
-    canvas.height = roundToDivide(viewport.height * outputScale.sy, sfy[0]);
-    const { style } = canvas;
-    style.width = roundToDivide(viewport.width, sfx[1]) + "px";
-    style.height = roundToDivide(viewport.height, sfy[1]) + "px";
-
-    // Add the viewport so it's known what it was originally drawn with.
-    this.paintedViewportMap.set(canvas, viewport);
-
-    // Rendering area
-    const transform = outputScale.scaled
-      ? [outputScale.sx, 0, 0, outputScale.sy, 0, 0]
-      : null;
-    const renderContext = {
-      canvasContext: ctx,
-      transform,
-      viewport,
-      annotationMode: this.#annotationMode,
-      optionalContentConfigPromise: this._optionalContentConfigPromise,
-      annotationCanvasMap: this._annotationCanvasMap,
-      pageColors: this.pageColors,
-    };
-    const renderTask = this.pdfPage.render(renderContext);
-    renderTask.onContinue = function (cont) {
-      showCanvas(false);
-      if (result.onRenderContinue) {
-        result.onRenderContinue(cont);
-      } else {
-        cont();
-      }
-    };
-
-    renderTask.promise.then(
-      function () {
-        showCanvas(true);
-        renderCapability.resolve();
-      },
-      function (error) {
-        // When zooming with a `drawingDelay` set, avoid temporarily showing
-        // a black canvas if rendering was cancelled before the `onContinue`-
-        // callback had been invoked at least once.
-        if (!(error instanceof RenderingCancelledException)) {
-          showCanvas(true);
-        }
-        renderCapability.reject(error);
-      }
-    );
-    return result;
-  }
-
-  paintOnSvg(wrapper) {
-    if (
-      !(
-        typeof PDFJSDev === "undefined" ||
-        PDFJSDev.test("!PRODUCTION || GENERIC")
-      )
-    ) {
-      throw new Error("Not implemented: paintOnSvg");
-    }
-    let cancelled = false;
-    const ensureNotCancelled = () => {
-      if (cancelled) {
-        throw new RenderingCancelledException(
-          `Rendering cancelled, page ${this.id}`,
-          "svg"
-        );
-      }
-    };
-
-    const pdfPage = this.pdfPage;
-    const actualSizeViewport = this.viewport.clone({
-      scale: PixelsPerInch.PDF_TO_CSS_UNITS,
-    });
-    const promise = pdfPage
-      .getOperatorList({
-        annotationMode: this.#annotationMode,
-      })
-      .then(opList => {
-        ensureNotCancelled();
-        const svgGfx = new SVGGraphics(pdfPage.commonObjs, pdfPage.objs);
-        return svgGfx.getSVG(opList, actualSizeViewport).then(svg => {
-          ensureNotCancelled();
-          this.svg = svg;
-          this.paintedViewportMap.set(svg, actualSizeViewport);
-
-          svg.style.width = wrapper.style.width;
-          svg.style.height = wrapper.style.height;
-          this.renderingState = RenderingStates.FINISHED;
-          wrapper.append(svg);
-        });
-      });
-
-    return {
-      promise,
-      onRenderContinue(cont) {
-        cont();
-      },
-      cancel() {
-        cancelled = true;
-      },
-      get separateAnnots() {
-        return false;
-      },
-    };
-  }
-
   /**
    * @param {string|null} label
    */
   setPageLabel(label) {
     this.pageLabel = typeof label === "string" ? label : null;
+
+    this.div.setAttribute(
+      "data-l10n-args",
+      JSON.stringify({ page: this.pageLabel ?? this.id })
+    );
 
     if (this.pageLabel !== null) {
       this.div.setAttribute("data-page-label", this.pageLabel);
@@ -1170,9 +1145,11 @@ class PDFPageView {
    * @ignore
    */
   get thumbnailCanvas() {
-    const { initialOptionalContent, regularAnnotations } =
+    const { directDrawing, initialOptionalContent, regularAnnotations } =
       this.#useThumbnailCanvas;
-    return initialOptionalContent && regularAnnotations ? this.canvas : null;
+    return directDrawing && initialOptionalContent && regularAnnotations
+      ? this.canvas
+      : null;
   }
 }
 

@@ -72,5 +72,3 @@ composer run-script post-install-cmd # Apply CCMS auth files
 ```
 
 Build files are a part of the repo, so whenever an updated build is created, it should be committed.
-
-

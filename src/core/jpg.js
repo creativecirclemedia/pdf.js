@@ -385,12 +385,10 @@ function decodeScan(
 
   let mcu = 0,
     fileMarker;
-  let mcuExpected;
-  if (componentsLength === 1) {
-    mcuExpected = components[0].blocksPerLine * components[0].blocksPerColumn;
-  } else {
-    mcuExpected = mcusPerLine * frame.mcusPerColumn;
-  }
+  const mcuExpected =
+    componentsLength === 1
+      ? components[0].blocksPerLine * components[0].blocksPerColumn
+      : mcusPerLine * frame.mcusPerColumn;
 
   let h, v;
   while (mcu <= mcuExpected) {
@@ -759,7 +757,7 @@ class JpegImage {
       let endOffset = offset + length - 2;
 
       const fileMarker = findNextFileMarker(data, endOffset, offset);
-      if (fileMarker && fileMarker.invalid) {
+      if (fileMarker?.invalid) {
         warn(
           "readDataBlock - incorrect length, current marker is: " +
             fileMarker.invalid
@@ -1052,7 +1050,7 @@ class JpegImage {
             /* currentPos = */ offset - 2,
             /* startPos = */ offset - 3
           );
-          if (nextFileMarker && nextFileMarker.invalid) {
+          if (nextFileMarker?.invalid) {
             warn(
               "JpegImage.parse - unexpected data, current marker is: " +
                 nextFileMarker.invalid
@@ -1075,6 +1073,9 @@ class JpegImage {
       offset += 2;
     }
 
+    if (!frame) {
+      throw new JpegError("JpegImage.parse - no frame data found.");
+    }
     this.width = frame.samplesPerLine;
     this.height = frame.scanLines;
     this.jfif = jfif;
@@ -1528,10 +1529,7 @@ class JpegImage {
     forceRGB = false,
     isSourcePDF = false,
   }) {
-    if (
-      typeof PDFJSDev === "undefined" ||
-      PDFJSDev.test("!PRODUCTION || TESTING")
-    ) {
+    if (typeof PDFJSDev === "undefined" || PDFJSDev.test("TESTING")) {
       assert(
         isSourcePDF === true,
         'JpegImage.getData: Unexpected "isSourcePDF" value for PDF files.'

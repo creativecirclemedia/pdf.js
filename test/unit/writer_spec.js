@@ -20,7 +20,7 @@ import { StringStream } from "../../src/core/stream.js";
 
 describe("Writer", function () {
   describe("Incremental update", function () {
-    it("should update a file with new objects", function () {
+    it("should update a file with new objects", async function () {
       const originalData = new Uint8Array();
       const newRefs = [
         { ref: Ref.get(123, 0x2d), data: "abc\n" },
@@ -37,30 +37,59 @@ describe("Writer", function () {
         info: {},
       };
 
-      let data = incrementalUpdate({ originalData, xrefInfo, newRefs });
+      let data = await incrementalUpdate({
+        originalData,
+        xrefInfo,
+        newRefs,
+        useXrefStream: true,
+      });
       data = bytesToString(data);
 
-      const expected =
+      let expected =
         "\nabc\n" +
         "defg\n" +
         "789 0 obj\n" +
-        "<< /Size 790 /Prev 314 /Type /XRef /Index [0 1 123 1 456 1 789 1] " +
-        "/ID [(id) (\x01#Eg\x89\xab\xcd\xef\xfe\xdc\xba\x98vT2\x10)] " +
-        "/W [1 1 2] /Length 16>> stream\n" +
-        "\x00\x01\xff\xff" +
-        "\x01\x01\x00\x2d" +
-        "\x01\x05\x00\x4e" +
-        "\x01\x0a\x00\x00\n" +
+        "<< /Prev 314 /Size 790 /Type /XRef /Index [123 1 456 1 789 1] " +
+        "/W [1 1 1] /ID [(id) (\x01#Eg\x89\xab\xcd\xef\xfe\xdc\xba\x98vT2\x10)] " +
+        "/Length 9>> stream\n" +
+        "\x01\x01\x2d" +
+        "\x01\x05\x4e" +
+        "\x01\x0a\x00\n" +
         "endstream\n" +
         "endobj\n" +
         "startxref\n" +
         "10\n" +
         "%%EOF\n";
+      expect(data).toEqual(expected);
 
+      data = await incrementalUpdate({
+        originalData,
+        xrefInfo,
+        newRefs,
+        useXrefStream: false,
+      });
+      data = bytesToString(data);
+
+      expected =
+        "\nabc\n" +
+        "defg\n" +
+        "xref\n" +
+        "123 1\n" +
+        "0000000001 00045 n\r\n" +
+        "456 1\n" +
+        "0000000005 00078 n\r\n" +
+        "789 1\n" +
+        "0000000010 00000 n\r\n" +
+        "trailer\n" +
+        "<< /Prev 314 /Size 789 " +
+        "/ID [(id) (\x01#Eg\x89\xab\xcd\xef\xfe\xdc\xba\x98vT2\x10)]>>\n" +
+        "startxref\n" +
+        "10\n" +
+        "%%EOF\n";
       expect(data).toEqual(expected);
     });
 
-    it("should update a file, missing the /ID-entry, with new objects", function () {
+    it("should update a file, missing the /ID-entry, with new objects", async function () {
       const originalData = new Uint8Array();
       const newRefs = [{ ref: Ref.get(123, 0x2d), data: "abc\n" }];
       const xrefInfo = {
@@ -74,17 +103,21 @@ describe("Writer", function () {
         info: {},
       };
 
-      let data = incrementalUpdate({ originalData, xrefInfo, newRefs });
+      let data = await incrementalUpdate({
+        originalData,
+        xrefInfo,
+        newRefs,
+        useXrefStream: true,
+      });
       data = bytesToString(data);
 
       const expected =
         "\nabc\n" +
         "789 0 obj\n" +
-        "<< /Size 790 /Prev 314 /Type /XRef /Index [0 1 123 1 789 1] " +
-        "/W [1 1 2] /Length 12>> stream\n" +
-        "\x00\x01\xff\xff" +
-        "\x01\x01\x00\x2d" +
-        "\x01\x05\x00\x00\n" +
+        "<< /Prev 314 /Size 790 /Type /XRef /Index [123 1 789 1] " +
+        "/W [1 1 1] /Length 6>> stream\n" +
+        "\x01\x01\x2d" +
+        "\x01\x05\x00\n" +
         "endstream\n" +
         "endobj\n" +
         "startxref\n" +
@@ -96,7 +129,7 @@ describe("Writer", function () {
   });
 
   describe("writeDict", function () {
-    it("should write a Dict", function () {
+    it("should write a Dict", async function () {
       const dict = new Dict(null);
       dict.set("A", Name.get("B"));
       dict.set("B", Ref.get(123, 456));
@@ -121,7 +154,7 @@ describe("Writer", function () {
       dict.set("NullVal", null);
 
       const buffer = [];
-      writeDict(dict, buffer, null);
+      await writeDict(dict, buffer, null);
 
       const expected =
         "<< /A /B /B 123 456 R /C 789 /D (hello world) " +
@@ -134,14 +167,14 @@ describe("Writer", function () {
       expect(buffer.join("")).toEqual(expected);
     });
 
-    it("should write a Dict in escaping PDF names", function () {
+    it("should write a Dict in escaping PDF names", async function () {
       const dict = new Dict(null);
       dict.set("\xfeA#", Name.get("hello"));
       dict.set("B", Name.get("#hello"));
       dict.set("C", Name.get("he\xfello\xff"));
 
       const buffer = [];
-      writeDict(dict, buffer, null);
+      await writeDict(dict, buffer, null);
 
       const expected = "<< /#feA#23 /hello /B /#23hello /C /he#fello#ff>>";
 
@@ -150,7 +183,7 @@ describe("Writer", function () {
   });
 
   describe("XFA", function () {
-    it("should update AcroForm when no datasets in XFA array", function () {
+    it("should update AcroForm when no datasets in XFA array", async function () {
       const originalData = new Uint8Array();
       const newRefs = [];
 
@@ -176,7 +209,7 @@ describe("Writer", function () {
         info: {},
       };
 
-      let data = incrementalUpdate({
+      let data = await incrementalUpdate({
         originalData,
         xrefInfo,
         newRefs,
@@ -187,6 +220,7 @@ describe("Writer", function () {
         acroForm,
         xfaData,
         xref: {},
+        useXrefStream: true,
       });
       data = bytesToString(data);
 
@@ -202,8 +236,8 @@ describe("Writer", function () {
         "endstream\n" +
         "endobj\n" +
         "131415 0 obj\n" +
-        "<< /Size 131416 /Prev 314 /Type /XRef /Index [0 1 789 1 101112 1 131415 1] /W [1 1 2] /Length 16>> stream\n" +
-        "\u0000\u0001ÿÿ\u0001\u0001\u0000\u0000\u0001[\u0000\u0000\u0001¹\u0000\u0000\n" +
+        "<< /Prev 314 /Size 131416 /Type /XRef /Index [789 1 101112 1 131415 1] /W [1 1 0] /Length 6>> stream\n" +
+        "\x01\x01\x01[\x01¹\n" +
         "endstream\n" +
         "endobj\n" +
         "startxref\n" +
