@@ -2219,6 +2219,7 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
     "http://pdfjs-20240412.creativecirclemedia.com",
     "https://pdfjs-20240412.creativecirclemedia.com",
     "http://pdfjs.creativecirclemedia.com",
+    "https://pdfjs.creativecirclemedia.com"
   ];
   // eslint-disable-next-line no-var
   var validateFileURL = function (file) {
