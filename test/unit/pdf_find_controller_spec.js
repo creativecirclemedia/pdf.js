@@ -17,7 +17,7 @@ import { FindState, PDFFindController } from "../../web/pdf_find_controller.js";
 import { buildGetDocumentParams } from "./test_utils.js";
 import { EventBus } from "../../web/event_utils.js";
 import { getDocument } from "../../src/display/api.js";
-import { isNodeJS } from "../../src/shared/is_node.js";
+import { isNodeJS } from "../../src/shared/util.js";
 import { SimpleLinkService } from "../../web/pdf_link_service.js";
 
 const tracemonkeyFileName = "tracemonkey.pdf";
@@ -95,7 +95,6 @@ function testSearch({
         query: null,
         caseSensitive: false,
         entireWord: false,
-        phraseSearch: true,
         findPrevious: false,
         matchDiacritics: false,
       },
@@ -122,9 +121,7 @@ function testSearch({
       }
     }
 
-    const totalMatches = matchesPerPage.reduce((a, b) => {
-      return a + b;
-    });
+    const totalMatches = matchesPerPage.reduce((a, b) => a + b);
 
     if (updateFindControlState) {
       eventBus.on(
@@ -182,7 +179,6 @@ function testEmptySearch({ eventBus, pdfFindController, state }) {
         query: null,
         caseSensitive: false,
         entireWord: false,
-        phraseSearch: true,
         findPrevious: false,
         matchDiacritics: false,
       },
@@ -321,10 +317,28 @@ describe("pdf_find_controller", function () {
       eventBus,
       pdfFindController,
       state: {
-        query: "alternate solution",
-        phraseSearch: false,
+        query: ["alternate", "solution"],
       },
       matchesPerPage: [0, 0, 0, 0, 0, 1, 0, 0, 4, 0, 0, 0, 0, 0],
+      selectedMatch: {
+        pageIndex: 5,
+        matchIndex: 0,
+      },
+    });
+  });
+
+  it("performs a multiple term (phrase) search", async function () {
+    // Page 9 contains 'alternate solution' and pages 6 and 9 contain
+    // 'solution'. Both should be found for multiple term (phrase) search.
+    const { eventBus, pdfFindController } = await initPdfFindController();
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: ["alternate solution", "solution"],
+      },
+      matchesPerPage: [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0],
       selectedMatch: {
         pageIndex: 5,
         matchIndex: 0,
@@ -380,6 +394,66 @@ describe("pdf_find_controller", function () {
       },
       pageMatches: [[27, 54]],
       pageMatchesLength: [[1, 1]],
+    });
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "1",
+      },
+      matchesPerPage: [3],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[27, 54, 55]],
+      pageMatchesLength: [[1, 1, 1]],
+    });
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "2",
+      },
+      matchesPerPage: [2],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[27, 54]],
+      pageMatchesLength: [[1, 1]],
+    });
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "1/",
+      },
+      matchesPerPage: [3],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[27, 54, 55]],
+      pageMatchesLength: [[1, 1, 1]],
+    });
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "1/21",
+      },
+      matchesPerPage: [1],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[54]],
+      pageMatchesLength: [[2]],
     });
   });
 
@@ -466,7 +540,7 @@ describe("pdf_find_controller", function () {
         pageIndex: 0,
         matchIndex: 0,
       },
-      pageMatches: [[2743]],
+      pageMatches: [[2734]],
       pageMatchesLength: [[14]],
     });
   });
@@ -485,7 +559,7 @@ describe("pdf_find_controller", function () {
         pageIndex: 1,
         matchIndex: 0,
       },
-      pageMatches: [[], [1493]],
+      pageMatches: [[], [1486]],
       pageMatchesLength: [[], [11]],
     });
   });
@@ -518,7 +592,7 @@ describe("pdf_find_controller", function () {
         [],
         [],
         [],
-        [2087],
+        [2081],
       ],
       pageMatchesLength: [
         [24],
@@ -553,7 +627,7 @@ describe("pdf_find_controller", function () {
         pageIndex: 0,
         matchIndex: 0,
       },
-      pageMatches: [[1501]],
+      pageMatches: [[1497]],
       pageMatchesLength: [[25]],
     });
   });
@@ -594,7 +668,7 @@ describe("pdf_find_controller", function () {
         pageIndex: 0,
         matchIndex: 0,
       },
-      pageMatches: [[1946]],
+      pageMatches: [[1941]],
       pageMatchesLength: [[21]],
     });
   });
@@ -616,7 +690,7 @@ describe("pdf_find_controller", function () {
         pageIndex: 0,
         matchIndex: 0,
       },
-      pageMatches: [[1946]],
+      pageMatches: [[1941]],
       pageMatchesLength: [[23]],
     });
   });
@@ -636,7 +710,7 @@ describe("pdf_find_controller", function () {
         pageIndex: 0,
         matchIndex: 0,
       },
-      pageMatches: [[1946]],
+      pageMatches: [[1941]],
       pageMatchesLength: [[23]],
     });
   });
@@ -646,9 +720,8 @@ describe("pdf_find_controller", function () {
       pending("Linked test-cases are not supported in Node.js.");
     }
 
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "issue14562.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("issue14562.pdf");
 
     await testSearch({
       eventBus,
@@ -686,9 +759,8 @@ describe("pdf_find_controller", function () {
   });
 
   it("performs a search in a text containing some Hangul syllables", async function () {
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "bug1771477.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("bug1771477.pdf");
 
     await testSearch({
       eventBus,
@@ -707,9 +779,8 @@ describe("pdf_find_controller", function () {
   });
 
   it("performs a search in a text containing an ideographic at the end of a line", async function () {
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "issue15340.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("issue15340.pdf");
 
     await testSearch({
       eventBus,
@@ -728,9 +799,8 @@ describe("pdf_find_controller", function () {
   });
 
   it("performs a search in a text containing fullwidth chars", async function () {
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "issue15690.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("issue15690.pdf");
 
     await testSearch({
       eventBus,
@@ -749,9 +819,8 @@ describe("pdf_find_controller", function () {
   });
 
   it("performs a search in a text with some Katakana at the end of a line", async function () {
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "issue15759.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("issue15759.pdf");
 
     await testSearch({
       eventBus,
@@ -786,9 +855,8 @@ describe("pdf_find_controller", function () {
       pending("Linked test-cases are not supported in Node.js.");
     }
 
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "issue12909.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("issue12909.pdf");
 
     await testSearch({
       eventBus,
@@ -820,9 +888,8 @@ describe("pdf_find_controller", function () {
   });
 
   it("performs a search in a text with some Hiragana diacritics at the end of a line", async function () {
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "issue16063.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("issue16063.pdf");
 
     await testSearch({
       eventBus,
@@ -860,9 +927,8 @@ describe("pdf_find_controller", function () {
       pending("Linked test-cases are not supported in Node.js.");
     }
 
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "bug1820909.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("bug1820909.pdf");
 
     await testSearch({
       eventBus,
@@ -881,9 +947,8 @@ describe("pdf_find_controller", function () {
   });
 
   it("performs a search in a text with some UTF-32 chars followed by a dash at the end of a line", async function () {
-    const { eventBus, pdfFindController } = await initPdfFindController(
-      "bug1820909.1.pdf"
-    );
+    const { eventBus, pdfFindController } =
+      await initPdfFindController("bug1820909.1.pdf");
 
     await testSearch({
       eventBus,
@@ -898,6 +963,63 @@ describe("pdf_find_controller", function () {
       },
       pageMatches: [[42, 95]],
       pageMatchesLength: [[5, 5]],
+    });
+  });
+
+  it("performs a search in a text with some arabic chars in different unicode ranges but with same normalized form", async function () {
+    const { eventBus, pdfFindController } = await initPdfFindController(
+      "ArabicCIDTrueType.pdf"
+    );
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "\u0629",
+      },
+      matchesPerPage: [4],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[6, 25, 44, 63]],
+      pageMatchesLength: [[1, 1, 1, 1]],
+    });
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "\ufe94",
+      },
+      matchesPerPage: [4],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[6, 25, 44, 63]],
+      pageMatchesLength: [[1, 1, 1, 1]],
+    });
+  });
+
+  it("performs a search in a text with some f ligatures", async function () {
+    const { eventBus, pdfFindController } = await initPdfFindController(
+      "copy_paste_ligatures.pdf"
+    );
+
+    await testSearch({
+      eventBus,
+      pdfFindController,
+      state: {
+        query: "f",
+      },
+      matchesPerPage: [9],
+      selectedMatch: {
+        pageIndex: 0,
+        matchIndex: 0,
+      },
+      pageMatches: [[5, 6, 6, 7, 8, 9, 9, 10, 10]],
+      pageMatchesLength: [[1, 1, 1, 1, 1, 1, 1, 1, 1]],
     });
   });
 });

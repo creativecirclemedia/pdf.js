@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+const AltTextManager = null;
 const AnnotationEditorParams = null;
 const PDFAttachmentViewer = null;
 const PDFCursorTools = null;
@@ -22,12 +23,11 @@ const PDFLayerViewer = null;
 const PDFOutlineViewer = null;
 const PDFPresentationMode = null;
 const PDFSidebar = null;
-const PDFSidebarResizer = null;
 const PDFThumbnailViewer = null;
 const SecondaryToolbar = null;
-const Toolbar = null;
 
 export {
+  AltTextManager,
   AnnotationEditorParams,
   PDFAttachmentViewer,
   PDFCursorTools,
@@ -37,8 +37,6 @@ export {
   PDFOutlineViewer,
   PDFPresentationMode,
   PDFSidebar,
-  PDFSidebarResizer,
   PDFThumbnailViewer,
   SecondaryToolbar,
-  Toolbar,
 };

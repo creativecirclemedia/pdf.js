@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-import "web-com";
-import "web-print_service";
 import { RenderingStates, ScrollMode, SpreadMode } from "./ui_utils.js";
 import { AppOptions } from "./app_options.js";
 import { LinkTarget } from "./pdf_link_service.js";
@@ -52,17 +50,25 @@ function getViewerConfiguration() {
       zoomIn: document.getElementById("zoomIn"),
       zoomOut: document.getElementById("zoomOut"),
       viewFind: document.getElementById("viewFind"),
-      openFile:
-        typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")
-          ? document.getElementById("openFile")
-          : null,
       print: document.getElementById("print"),
+      openFileInNewTab: document.getElementById("openFileInNewTab"),
       editorFreeTextButton: document.getElementById("editorFreeText"),
       editorFreeTextParamsToolbar: document.getElementById(
         "editorFreeTextParamsToolbar"
       ),
+      editorHighlightButton: document.getElementById("editorHighlight"),
+      editorHighlightParamsToolbar: document.getElementById(
+        "editorHighlightParamsToolbar"
+      ),
+      editorHighlightColorPicker: document.getElementById(
+        "editorHighlightColorPicker"
+      ),
       editorInkButton: document.getElementById("editorInk"),
       editorInkParamsToolbar: document.getElementById("editorInkParamsToolbar"),
+      editorStampButton: document.getElementById("editorStamp"),
+      editorStampParamsToolbar: document.getElementById(
+        "editorStampParamsToolbar"
+      ),
       download: document.getElementById("download"),
     },
     secondaryToolbar: {
@@ -96,6 +102,7 @@ function getViewerConfiguration() {
       outerContainer: document.getElementById("outerContainer"),
       sidebarContainer: document.getElementById("sidebarContainer"),
       toggleButton: document.getElementById("sidebarToggle"),
+      resizer: document.getElementById("sidebarResizer"),
       // Buttons
       thumbnailButton: document.getElementById("viewThumbnail"),
       outlineButton: document.getElementById("viewOutline"),
@@ -107,14 +114,7 @@ function getViewerConfiguration() {
       attachmentsView: document.getElementById("attachmentsView"),
       layersView: document.getElementById("layersView"),
       // View-specific options
-      outlineOptionsContainer: document.getElementById(
-        "outlineOptionsContainer"
-      ),
       currentOutlineItemButton: document.getElementById("currentOutlineItem"),
-    },
-    sidebarResizer: {
-      outerContainer: document.getElementById("outerContainer"),
-      resizer: document.getElementById("sidebarResizer"),
     },
     findBar: {
       bar: document.getElementById("findbar"),
@@ -156,19 +156,27 @@ function getViewerConfiguration() {
         linearized: document.getElementById("linearizedField"),
       },
     },
+    altTextDialog: {
+      dialog: document.getElementById("altTextDialog"),
+      optionDescription: document.getElementById("descriptionButton"),
+      optionDecorative: document.getElementById("decorativeButton"),
+      textarea: document.getElementById("descriptionTextarea"),
+      cancelButton: document.getElementById("altTextCancel"),
+      saveButton: document.getElementById("altTextSave"),
+    },
     annotationEditorParams: {
       editorFreeTextFontSize: document.getElementById("editorFreeTextFontSize"),
       editorFreeTextColor: document.getElementById("editorFreeTextColor"),
       editorInkColor: document.getElementById("editorInkColor"),
       editorInkThickness: document.getElementById("editorInkThickness"),
       editorInkOpacity: document.getElementById("editorInkOpacity"),
+      editorStampAddImage: document.getElementById("editorStampAddImage"),
+      editorFreeHighlightThickness: document.getElementById(
+        "editorFreeHighlightThickness"
+      ),
+      editorHighlightShowAll: document.getElementById("editorHighlightShowAll"),
     },
     printContainer: document.getElementById("printContainer"),
-    openFileInput:
-      typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")
-        ? document.getElementById("fileInput")
-        : null,
-    debuggerScriptPath: "./debugger.js",
   };
 }
 
@@ -179,9 +187,12 @@ function webViewerLoad() {
     // Give custom implementations of the default viewer a simpler way to
     // set various `AppOptions`, by dispatching an event once all viewer
     // files are loaded but *before* the viewer initialization has run.
-    const event = document.createEvent("CustomEvent");
-    event.initCustomEvent("webviewerloaded", true, true, {
-      source: window,
+    const event = new CustomEvent("webviewerloaded", {
+      bubbles: true,
+      cancelable: true,
+      detail: {
+        source: window,
+      },
     });
     try {
       // Attempt to dispatch the event at the embedding `document`,
