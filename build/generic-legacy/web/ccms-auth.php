@@ -30,12 +30,12 @@ if(
 
     // Temporary auth attempt
     $entropy = date('j');
-    $check_against = $_REQUEST['auth'];
+    $check_against = $_REQUEST['auth'] ?? '';
 
   }
 
   // Run the check
-  $auth_should_be = substr(md5(basename($_REQUEST['view']).$entropy),0,10);
+  $auth_should_be = substr(md5(basename($_REQUEST['view'] ?? '').$entropy),0,10);
 
   if(
     empty($_REQUEST['view'])
@@ -44,8 +44,8 @@ if(
   ){
     header('HTTP/1.0 401 Unauthorized');
     echo 'HTTP/1.0 401 Unauthorized';
-    if( $_REQUEST['showauth'] ){
-      echo "<HR>View is ".$_REQUEST['view']."<BR>\n";
+    if( !empty($_REQUEST['showauth']) ){
+      echo "<HR>View is ".($_REQUEST['view'] ?? '')."<BR>\n";
       echo "Date is ".date('j')."<BR>\n";
       echo "Auth should be ".$auth_should_be."<BR>\n";;
       echo "Attempted auth is ".$check_against."<BR>\n";;
