@@ -6,15 +6,18 @@ Comes with a precompiled build (located in `build/generic-legacy`), and a docker
 
 ## Installing the web service
 
-Requires a recent version of docker, and of composer.
+Requires a recent version of docker. Composer is bundled in the image, so it runs on the same PHP version as the app.
 
 ```
 git clone [this]
 cd [this]
 cp .env.example .env # And edit to suit
-composer install
+docker compose build
+docker compose run --rm --user "$(id -u):$(id -g)" app composer install
 docker compose up -d
 ```
+
+Other composer commands (e.g. `composer update`) can be run the same way.
 
 Once up and running, the viewer is served up from the `/web/` path of the configured hostname and port. It uses the standard `pauth` and `file` arguments that the prior version did.
 
@@ -28,7 +31,7 @@ Requires `npm` and `gulp` as per the docs at the main site.
 export PUPPETEER_SKIP_DOWNLOAD=1
 npm i -f
 gulp generic-legacy # Build the viewer in build/generic-legacy
-composer run-script post-install-cmd # Apply CCMS auth files
+docker compose run --rm --user "$(id -u):$(id -g)" app composer run-script post-install-cmd # Apply CCMS auth files
 ```
 
 ## Development
@@ -68,7 +71,7 @@ Is similar to the initial build, though a few steps can be skipped if node packa
 
 ```
 gulp generic-legacy # Build the viewer in build/generic-legacy
-composer run-script post-install-cmd # Apply CCMS auth files
+docker compose run --rm --user "$(id -u):$(id -g)" app composer run-script post-install-cmd # Apply CCMS auth files
 ```
 
 Build files are a part of the repo, so whenever an updated build is created, it should be committed.
